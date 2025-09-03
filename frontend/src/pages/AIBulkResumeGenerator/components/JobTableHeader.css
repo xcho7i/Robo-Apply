@@ -1,0 +1,31 @@
+@media (width: 1024px) {
+  .grid:has(div .__custom-heading-wrapper) {
+    gap: 0px !important;
+  }
+
+  .__custom-heading-wrapper {
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-items: start !important;
+    gap: 6px;
+  }
+  .__custom-heading-wrapper.__allow-margin {
+    margin-left: 12px !important;
+  }
+
+  .__custom-heading-wrapper.__allow-margin-desc {
+    margin-left: 8px !important;
+  }
+
+  .__custom-heading-wrapper.__allow-margin-skills {
+    margin-left: 4px !important;
+  }
+
+  .__custom-heading-wrapper > button {
+    margin: 0 !important;
+  }
+
+  .__custom-heading-wrapper > span {
+    margin: 0 !important;
+  }
+}

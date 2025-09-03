@@ -1,0 +1,49 @@
+/* Custom styles for Swiper.js carousel */
+.onboardingSwiper {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Pagination styles */
+.onboardingSwiper :global(.swiper-pagination) {
+  bottom: 30px !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.onboardingSwiper :global(.swiper-pagination-bullet) {
+  width: 10px !important;
+  height: 10px !important;
+  background: rgba(255, 255, 255, 0.3) !important;
+  opacity: 1 !important;
+  transition: all 0.3s ease !important;
+  margin: 0 !important;
+  border-radius: 50% !important;
+  cursor: pointer !important;
+}
+
+.onboardingSwiper :global(.swiper-pagination-bullet:hover) {
+  background: rgba(255, 255, 255, 0.5) !important;
+  transform: scale(1.1) !important;
+}
+
+.onboardingSwiper :global(.swiper-pagination-bullet-active) {
+  background: #fbbf24 !important;
+  transform: scale(1.2) !important;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.5) !important;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .onboardingSwiper :global(.swiper-pagination) {
+    bottom: 20px !important;
+    gap: 6px !important;
+  }
+
+  .onboardingSwiper :global(.swiper-pagination-bullet) {
+    width: 8px !important;
+    height: 8px !important;
+  }
+}

@@ -1,0 +1,75 @@
+button[title="Download Original Resume"],
+button[title="Download Tailored Resume"] {
+  background-color: #d9e9fe !important;
+  color: black !important;
+}
+
+button[title="Download Original Resume"]:is( :hover,
+  :focus,
+  :focus-visible,
+  :focus-within),
+button[title="Download Tailored Resume"]:is( :hover,
+  :focus,
+  :focus-visible,
+  :focus-within) {
+  outline: none !important;
+}
+
+.__custom-toggle-wrapper>div {
+  font-weight: lighter !important;
+  height: 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding-top: 13px;
+  padding-bottom: 12px;
+  border-color: black !important;
+  border-width: 1px !important;
+  font-size: 16px !important;
+}
+
+.__custom-toggle-wrapper>div>span:not(.mx-2s):not(.__custom-off-wrapper) {
+  height: 20px !important;
+  width: 20px !important;
+
+}
+
+.__custom-toggle-wrapper>div>div>span.mx-2s {
+  margin-top: 2px !important;
+  padding-left: 10px !important;
+}
+
+.__custom-toggle-wrapper .__custom-off-wrapper[data-on="true"] {
+  visibility: hidden !important;
+}
+
+@media (width: 1024px) {
+  .__custom-action-pane {
+    display: flex !important;
+    flex-direction: column !important;
+    margin-right: -12px !important;
+    position: relative;
+  }
+
+  .__custom-action-pane>button {
+    width: 100%;
+  }
+
+  .__custom-action-pane>.relative {
+    position: absolute !important;
+    bottom: 0 !important;
+    right: -15px !important;
+  }
+
+  .__custom-action-pane>button:has(+ .relative) {
+    margin-right: 10px;
+    width: calc(100% - 10px) !important;
+  }
+}
+
+/* input[type="checkbox"],
+input[type="checkbox"]:is(:focus, :focus-visible, :focus-within) {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+} */

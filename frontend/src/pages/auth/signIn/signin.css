@@ -1,0 +1,4 @@
+.custom-google-login-iphone div:has(> iframe),
+.custom-google-login-iphone div:has(> iframe) iframe {
+  width: 100% !important;
+}

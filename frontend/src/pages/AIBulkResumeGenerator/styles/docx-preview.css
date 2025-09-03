@@ -1,0 +1,474 @@
+/* Custom styling for docx-preview content */
+.docx-wrapper {
+  font-family: "Calibri", "Arial", sans-serif;
+  line-height: 1.4;
+  color: #333;
+  background: white;
+  padding: 16px;
+  border-radius: 8px;
+  max-width: 100%;
+  margin: 0 auto;
+  min-height: 400px;
+  overflow-y: auto;
+}
+
+/* Ensure diff highlighter components inherit exact docx-wrapper styling */
+.diff-highlighter,
+.docx-diff-highlighter,
+.simple-text-highlighter {
+  /* Inherit all docx-wrapper styles exactly */
+  font-family: "Calibri", "Arial", sans-serif !important;
+  line-height: 1.4 !important;
+  color: #333 !important;
+  background: white !important;
+  padding: 16px !important;
+  border-radius: 8px !important;
+  max-width: 100% !important;
+  margin: 0 auto !important;
+  min-height: 400px !important;
+  overflow-y: auto !important;
+
+  /* Ensure visibility */
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Apply exact docx-wrapper styling to diff highlighter content */
+.diff-highlighter *,
+.docx-diff-highlighter *,
+.simple-text-highlighter * {
+  max-width: 100% !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
+.diff-highlighter p,
+.docx-diff-highlighter p,
+.simple-text-highlighter p {
+  margin: 6px 0;
+  font-size: 11pt;
+  line-height: 1.3;
+}
+
+.diff-highlighter h1,
+.diff-highlighter h2,
+.diff-highlighter h3,
+.docx-diff-highlighter h1,
+.docx-diff-highlighter h2,
+.docx-diff-highlighter h3,
+.simple-text-highlighter h1,
+.simple-text-highlighter h2,
+.simple-text-highlighter h3 {
+  margin: 14px 0 6px 0;
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.diff-highlighter h1,
+.docx-diff-highlighter h1,
+.simple-text-highlighter h1 {
+  font-size: 16pt;
+  text-align: center;
+  border-bottom: 2px solid #2563eb;
+  padding-bottom: 6px;
+}
+
+.diff-highlighter h2,
+.docx-diff-highlighter h2,
+.simple-text-highlighter h2 {
+  font-size: 13pt;
+  color: #1e40af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.diff-highlighter h3,
+.docx-diff-highlighter h3,
+.simple-text-highlighter h3 {
+  font-size: 11pt;
+  color: #374151;
+}
+
+.diff-highlighter ul,
+.diff-highlighter ol,
+.docx-diff-highlighter ul,
+.docx-diff-highlighter ol,
+.simple-text-highlighter ul,
+.simple-text-highlighter ol {
+  margin: 8px 0 8px 20px;
+  padding: 0;
+}
+
+.diff-highlighter li,
+.docx-diff-highlighter li,
+.simple-text-highlighter li {
+  margin: 4px 0;
+  font-size: 11pt;
+  line-height: 1.3;
+}
+
+.diff-highlighter table,
+.docx-diff-highlighter table,
+.simple-text-highlighter table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+
+.diff-highlighter td,
+.diff-highlighter th,
+.docx-diff-highlighter td,
+.docx-diff-highlighter th,
+.simple-text-highlighter td,
+.simple-text-highlighter th {
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  font-size: 10pt;
+  line-height: 1.2;
+}
+
+.diff-highlighter strong,
+.diff-highlighter b,
+.docx-diff-highlighter strong,
+.docx-diff-highlighter b,
+.simple-text-highlighter strong,
+.simple-text-highlighter b {
+  font-weight: 600;
+  color: #374151;
+}
+
+.diff-highlighter em,
+.diff-highlighter i,
+.docx-diff-highlighter em,
+.docx-diff-highlighter i,
+.simple-text-highlighter em,
+.simple-text-highlighter i {
+  font-style: italic;
+  color: #6b7280;
+}
+
+/* Ensure proper container behavior */
+.docx-wrapper * {
+  max-width: 100% !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
+.docx-wrapper p {
+  margin: 6px 0;
+  font-size: 11pt;
+  line-height: 1.3;
+}
+
+.docx-wrapper h1,
+.docx-wrapper h2,
+.docx-wrapper h3 {
+  margin: 14px 0 6px 0;
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.docx-wrapper h1 {
+  font-size: 16pt;
+  text-align: center;
+  border-bottom: 2px solid #2563eb;
+  padding-bottom: 6px;
+}
+
+.docx-wrapper h2 {
+  font-size: 13pt;
+  color: #1e40af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.docx-wrapper h3 {
+  font-size: 11pt;
+  color: #374151;
+}
+
+.docx-wrapper ul,
+.docx-wrapper ol {
+  margin: 8px 0 8px 20px;
+  padding: 0;
+}
+
+.docx-wrapper li {
+  margin: 4px 0;
+  font-size: 11pt;
+  line-height: 1.3;
+}
+
+.docx-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+
+.docx-wrapper td,
+.docx-wrapper th {
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  font-size: 10pt;
+  line-height: 1.2;
+}
+
+.docx-wrapper strong,
+.docx-wrapper b {
+  font-weight: 600;
+  color: #374151;
+}
+
+.docx-wrapper em,
+.docx-wrapper i {
+  font-style: italic;
+  color: #6b7280;
+}
+
+/* Contact information styling */
+.docx-wrapper .contact-info {
+  text-align: center;
+  margin: 12px 0;
+  font-size: 10pt;
+  color: #6b7280;
+}
+
+/* Section headers */
+.docx-wrapper .section-header {
+  font-size: 12pt;
+  font-weight: 600;
+  color: #2563eb;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 4px;
+  margin: 16px 0 8px 0;
+}
+
+/* Experience and education items */
+.docx-wrapper .experience-item,
+.docx-wrapper .education-item {
+  margin: 12px 0;
+}
+
+.docx-wrapper .job-title,
+.docx-wrapper .degree-title {
+  font-weight: 600;
+  color: #374151;
+  font-size: 11pt;
+}
+
+.docx-wrapper .company-name,
+.docx-wrapper .school-name {
+  font-weight: 500;
+  color: #6b7280;
+  font-size: 10pt;
+}
+
+.docx-wrapper .date-range {
+  color: #9ca3af;
+  font-size: 9pt;
+  font-style: italic;
+}
+
+/* Skills section */
+.docx-wrapper .skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.docx-wrapper .skill-item {
+  background: #f3f4f6;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 9pt;
+  color: #374151;
+}
+
+/* Markdown content styling for job descriptions */
+.markdown-content {
+  line-height: 1.6;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  color: #e5e7eb;
+}
+
+.markdown-content h1 {
+  font-size: 1.25rem;
+}
+
+.markdown-content h2 {
+  font-size: 1.125rem;
+}
+
+.markdown-content h3 {
+  font-size: 1rem;
+}
+
+.markdown-content p {
+  margin-bottom: 0.75rem;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin-bottom: 0.75rem;
+  padding-left: 1.5rem;
+}
+
+.markdown-content li {
+  margin-bottom: 0.25rem;
+}
+
+.markdown-content strong {
+  font-weight: 600;
+  color: black;
+}
+
+.markdown-content em {
+  font-style: italic;
+  color: #d1d5db;
+}
+
+.markdown-content code {
+  background-color: #374151;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  font-size: 0.875rem;
+  color: #fbbf24;
+}
+
+.markdown-content blockquote {
+  border-left: 4px solid #6b7280;
+  padding-left: 1rem;
+  margin: 1rem 0;
+  font-style: italic;
+  color: #9ca3af;
+}
+
+.markdown-content a {
+  color: #60a5fa;
+  text-decoration: underline;
+}
+
+.markdown-content a:hover {
+  color: #93c5fd;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .docx-wrapper {
+    padding: 12px;
+    font-size: 10pt;
+  }
+
+  .docx-wrapper h1 {
+    font-size: 14pt;
+  }
+
+  .docx-wrapper h2 {
+    font-size: 11pt;
+  }
+
+  .docx-wrapper h3 {
+    font-size: 10pt;
+  }
+}
+
+/* Override default docx-preview styles */
+.docx-wrapper div[style*="page-break"] {
+  page-break-before: avoid !important;
+  break-before: avoid !important;
+}
+
+.docx-wrapper div[style*="margin"] {
+  margin: 6px 0 !important;
+}
+
+/* Improved text rendering */
+.docx-wrapper .docx-content {
+  line-height: 1.4 !important;
+  font-size: 11pt !important;
+}
+
+/* Better spacing for generated content */
+.docx-wrapper .docx-content p {
+  margin: 6px 0 !important;
+}
+
+.docx-wrapper .docx-content div {
+  margin: 4px 0 !important;
+}
+
+/* Loading and error states */
+.docx-wrapper .loading-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: #6b7280;
+}
+
+.docx-wrapper .error-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: #dc2626;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  margin: 16px 0;
+}
+
+/* Horizontal scrolling mode styles */
+.docx-wrapper.horizontal-scroll {
+  overflow-x: auto;
+  overflow-y: auto;
+  white-space: nowrap;
+}
+
+.docx-wrapper.horizontal-scroll * {
+  max-width: none !important;
+  white-space: normal !important;
+}
+
+.docx-wrapper.horizontal-scroll .docx-content {
+  min-width: max-content;
+  width: auto;
+  display: inline-block;
+  vertical-align: top;
+  white-space: normal;
+}
+
+/* Better scrollbar styling for horizontal scroll */
+.docx-wrapper.horizontal-scroll::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.docx-wrapper.horizontal-scroll::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.docx-wrapper.horizontal-scroll::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.docx-wrapper.horizontal-scroll::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}

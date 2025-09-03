@@ -1,0 +1,423 @@
+/* Diff Highlighter Styles - EXACT Match with Resume Preview Design */
+.diff-highlighter {
+  font-family: "Calibri", "Arial", sans-serif !important;
+  line-height: 1.4 !important;
+  color: #333 !important;
+  background: white !important;
+  padding: 16px !important;
+  border-radius: 8px !important;
+  max-width: 100% !important;
+  margin: 0 auto !important;
+  min-height: 400px !important;
+  overflow-y: auto !important;
+}
+
+/* Exact match with docx-wrapper styling */
+.diff-highlighter h1 {
+  font-size: 16pt;
+  text-align: center;
+  border-bottom: 2px solid #2563eb;
+  padding-bottom: 6px;
+  margin: 14px 0 6px 0;
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.diff-highlighter h2 {
+  font-size: 13pt;
+  color: #1e40af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 14px 0 6px 0;
+  font-weight: 600;
+}
+
+.diff-highlighter h3 {
+  font-size: 11pt;
+  color: #374151;
+  margin: 14px 0 6px 0;
+  font-weight: 600;
+}
+
+.diff-highlighter h4,
+.diff-highlighter h5,
+.diff-highlighter h6 {
+  margin: 14px 0 6px 0;
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.diff-highlighter p {
+  margin: 6px 0;
+  font-size: 11pt;
+  line-height: 1.3;
+}
+
+.diff-highlighter ul,
+.diff-highlighter ol {
+  margin: 8px 0 8px 20px;
+  padding: 0;
+}
+
+.diff-highlighter li {
+  margin: 4px 0;
+  font-size: 11pt;
+  line-height: 1.3;
+}
+
+.diff-highlighter table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+
+.diff-highlighter td,
+.diff-highlighter th {
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  font-size: 10pt;
+  line-height: 1.2;
+}
+
+.diff-highlighter strong,
+.diff-highlighter b {
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Highlighting styles - subtle and integrated */
+.diff-highlighter .diff-added {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #333;
+  border-left: 3px solid rgba(34, 197, 94, 0.6);
+  padding-left: 4px;
+  margin: 1px 0;
+  border-radius: 2px;
+}
+
+.diff-highlighter .diff-removed {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #666;
+  text-decoration: line-through;
+  border-left: 3px solid rgba(239, 68, 68, 0.6);
+  padding-left: 4px;
+  margin: 1px 0;
+  border-radius: 2px;
+}
+
+.diff-highlighter .diff-unchanged {
+  color: #333;
+}
+
+.diff-highlighter .diff-legend {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.diff-highlighter .diff-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.diff-highlighter .diff-legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid;
+}
+
+.diff-highlighter .diff-legend-color.legend-added {
+  background-color: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.6);
+}
+
+.diff-highlighter .diff-legend-color.legend-removed {
+  background-color: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
+.diff-highlighter .diff-legend-color.legend-unchanged {
+  background-color: #f5f5f5;
+  border-color: #ccc;
+}
+
+.diff-highlighter .diff-content {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  max-height: none;
+  overflow: visible;
+}
+
+.diff-highlighter .diff-content pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: "Calibri", "Arial", sans-serif;
+  font-size: 11pt;
+  line-height: 1.3;
+  margin: 0;
+}
+
+/* Ensure word wrapping for long content */
+.diff-highlighter * {
+  max-width: 100% !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
+/* Additional styling to EXACTLY match docx-wrapper */
+.diff-highlighter em,
+.diff-highlighter i {
+  font-style: italic;
+  color: #6b7280;
+}
+
+/* Contact information styling */
+.diff-highlighter .contact-info {
+  text-align: center;
+  margin: 12px 0;
+  font-size: 10pt;
+  color: #6b7280;
+}
+
+/* Section headers */
+.diff-highlighter .section-header {
+  font-size: 12pt;
+  font-weight: 600;
+  color: #2563eb;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 4px;
+  margin: 16px 0 8px 0;
+}
+
+/* Experience and education items */
+.diff-highlighter .experience-item,
+.diff-highlighter .education-item {
+  margin: 12px 0;
+}
+
+.diff-highlighter .job-title,
+.diff-highlighter .degree-title {
+  font-weight: 600;
+  color: #374151;
+  font-size: 11pt;
+}
+
+.diff-highlighter .company-name,
+.diff-highlighter .school-name {
+  font-weight: 500;
+  color: #6b7280;
+  font-size: 10pt;
+}
+
+.diff-highlighter .date-range {
+  color: #9ca3af;
+  font-size: 9pt;
+  font-style: italic;
+}
+
+/* Skills section */
+.diff-highlighter .skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.diff-highlighter .skill-item {
+  background: #f3f4f6;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 9pt;
+  color: #374151;
+}
+
+/* Match link styling from resume preview */
+.diff-highlighter a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.diff-highlighter a:hover {
+  color: #1d4ed8;
+}
+
+/* Document content styling for DocxDiffHighlighter - EXACT Match with Resume Preview Design */
+.document-content {
+  font-family: "Calibri", "Arial", sans-serif !important;
+  line-height: 1.4 !important;
+  color: #333 !important;
+  background: white !important;
+  padding: 0 !important; /* Let docx-wrapper handle padding */
+  border-radius: 0 !important; /* Let docx-wrapper handle border-radius */
+  max-width: 100% !important;
+  margin: 0 !important;
+  min-height: auto !important;
+  overflow: visible !important;
+}
+
+/* Exact match with docx-wrapper styling for document content */
+.document-content h1 {
+  font-size: 16pt;
+  text-align: center;
+  border-bottom: 2px solid #2563eb;
+  padding-bottom: 6px;
+  margin: 14px 0 6px 0;
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.document-content h2 {
+  font-size: 13pt;
+  color: #1e40af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 14px 0 6px 0;
+  font-weight: 600;
+}
+
+.document-content h3 {
+  font-size: 11pt;
+  color: #374151;
+  margin: 14px 0 6px 0;
+  font-weight: 600;
+}
+
+.document-content h4,
+.document-content h5,
+.document-content h6 {
+  margin: 14px 0 6px 0;
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.document-content p {
+  margin: 6px 0;
+  font-size: 11pt;
+  line-height: 1.3;
+}
+
+.document-content ul,
+.document-content ol {
+  margin: 8px 0 8px 20px;
+  padding: 0;
+}
+
+.document-content li {
+  margin: 4px 0;
+  font-size: 11pt;
+  line-height: 1.3;
+}
+
+.document-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+
+.document-content td,
+.document-content th {
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  font-size: 10pt;
+  line-height: 1.2;
+}
+
+.document-content strong,
+.document-content b {
+  font-weight: 600;
+  color: #374151;
+}
+
+.document-content em,
+.document-content i {
+  font-style: italic;
+  color: #6b7280;
+}
+
+/* Ensure word wrapping for long content in document */
+.document-content * {
+  max-width: 100% !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
+/* Match link styling from resume preview */
+.document-content a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.document-content a:hover {
+  color: #1d4ed8;
+}
+
+/* Contact information styling */
+.document-content .contact-info {
+  text-align: center;
+  margin: 12px 0;
+  font-size: 10pt;
+  color: #6b7280;
+}
+
+/* Section headers */
+.document-content .section-header {
+  font-size: 12pt;
+  font-weight: 600;
+  color: #2563eb;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 4px;
+  margin: 16px 0 8px 0;
+}
+
+/* Experience and education items */
+.document-content .experience-item,
+.document-content .education-item {
+  margin: 12px 0;
+}
+
+.document-content .job-title,
+.document-content .degree-title {
+  font-weight: 600;
+  color: #374151;
+  font-size: 11pt;
+}
+
+.document-content .company-name,
+.document-content .school-name {
+  font-weight: 500;
+  color: #6b7280;
+  font-size: 10pt;
+}
+
+.document-content .date-range {
+  color: #9ca3af;
+  font-size: 9pt;
+  font-style: italic;
+}
+
+/* Skills section */
+.document-content .skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.document-content .skill-item {
+  background: #f3f4f6;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 9pt;
+  color: #374151;
+}

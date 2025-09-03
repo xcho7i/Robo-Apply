@@ -1,0 +1,244 @@
+.checklist-body {
+    padding: 1rem;
+    max-height: calc(100% - 150px);
+    overflow-y: auto;
+  }
+  .checklist-container {
+    padding-left: 20px;  /* ✅ left se spacing for whole list */
+  }
+  
+  .checklist-section {
+    margin-bottom: 18px;
+  }
+  
+  .checklist-heading,
+  .checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;  
+    font-size: 15px;
+    font-weight: 500;
+    color: #eee;
+    margin: 6px 0;
+    cursor: pointer;
+  }
+  
+  .checklist-section {
+    margin-bottom: 18px; /* groups ke beech gap */
+  }
+  
+  .checklist-heading,
+  .checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;  /* checkbox aur text ke beech */
+    font-size: 15px;
+    font-weight: 500;
+    color: #eee;
+    margin: 6px 0;
+    cursor: pointer;
+  }
+  
+  .checklist-heading {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px; /* heading aur uske items ke beech thoda gap */
+  }
+  
+  /* Checkbox size aur alignment */
+  .checklist-heading input[type="checkbox"],
+  .checklist-item input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #888;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+    background: transparent;
+    flex-shrink: 0; /* text ke pressure me shrink na ho */
+  }
+  
+  /* Checked state */
+  .checklist-heading input[type="checkbox"]:checked,
+  .checklist-item input[type="checkbox"]:checked {
+    background-color: #22c55e; /* green */
+    border-color: #22c55e;
+  }
+  
+  .checklist-heading input[type="checkbox"]:checked::after,
+  .checklist-item input[type="checkbox"]:checked::after {
+    content: "✓";
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -52%);
+  }
+  
+  /* Checkbox ko reset karke custom style do */
+.checklist-item input[type="checkbox"] {
+    appearance: none; /* default checkbox style hatado */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #bbb;
+    border-radius: 50%; /* ✅ circle bana diya */
+    display: inline-block;
+    position: relative;
+    cursor: pointer;
+    outline: none; /* blue outline hatado */
+    background: transparent;
+  }
+  
+  /* Checked state ke liye custom tick */
+  .checklist-item input[type="checkbox"]:checked {
+    background-color: #6a1b9a; /* purple fill ya jo color chahiye */
+    border-color: #6a1b9a;
+  }
+  
+  /* ✅ White tick mark */
+  .checklist-item input[type="checkbox"]:checked::after {
+    content: "✓";
+    color: white;
+    font-size: 12px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -52%);
+  }
+  
+  /* Label background kabhi change na ho */
+  .checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  
+  .checklist-item.active {
+    background: transparent !important; /* purple ya koi bg remove */
+  }
+/* Default outline/focus/blue glow hatao */
+.checklist-item input[type="checkbox"]:focus {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  
+  /* Custom checkbox design */
+  .checklist-item input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #bbb;
+    border-radius: 50%; /* ✅ circle */
+    display: inline-block;
+    position: relative;
+    cursor: pointer;
+    background: transparent;
+  }
+  
+  /* Checked state */
+  .checklist-item input[type="checkbox"]:checked {
+    background-color: #6a1b9a; /* purple */
+    border-color: #6a1b9a;
+  }
+  
+  /* White tick */
+  .checklist-item input[type="checkbox"]:checked::after {
+    content: "✓";
+    color: white;
+    font-size: 12px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -52%);
+  }
+    
+  
+  .checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    color: white;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .checklist-item:hover {
+    background: rgba(128, 0, 255, 0.2);
+  }
+  .checklist-item.active {
+    background: #6a2ca6;
+    font-weight: bold;
+  }
+  .checklist-item.child {
+    margin-left: 20px;
+    font-size: 13px;
+  }
+  
+  .checklist-footer {
+    padding: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .checklist-toggle {
+    color: white;
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  
+  .btn-purple {
+    width: 100%;
+    padding: 10px;
+    background: linear-gradient(to right, #7b2cbf, #5a189a);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .btn-purple:hover {
+    background: linear-gradient(to right, #9d4edd, #7b2cbf);
+  }
+  
+  .btn-yellow {
+    width: 100%;
+    padding: 10px;
+    background: #ffb703;
+    border: none;
+    border-radius: 6px;
+    color: black;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .btn-yellow:hover {
+    background: #fb8500;
+  }
+  
+  /* Responsive */
+  @media (max-width: 768px) {
+    .checklist-body {
+      font-size: 13px;
+    }
+    .btn-purple, .btn-yellow {
+      font-size: 14px;
+      padding: 8px;
+    }
+  }
+  
