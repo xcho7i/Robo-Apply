@@ -441,7 +441,7 @@ const DashboardSidebar = () => {
         </Link>
  
 
-        <button
+        {/* <button
          data-tour="ai-copilot-nav"
           onClick={() => setShowComingSoon(true)}
           className={`${
@@ -456,9 +456,9 @@ const DashboardSidebar = () => {
           {!isSidebarCollapsed && (
             <span className="ml-2">AI Interview Copilot</span>
           )}
-        </button>
+        </button> */}
 
-        {/* <Link
+        <Link
           to="/live-interview"
           onClick={handleCopilotClick} // ensure submenu opens
           className={`${
@@ -471,7 +471,7 @@ const DashboardSidebar = () => {
             loading="lazy"
           />
           {!isSidebarCollapsed && <span className="ml-2">AI Interview Copilot</span>}
-        </Link> */}
+        </Link>
 
         {isCopilotVisible ? (
           <div className="border-l-2 border-[#676767] p-4">
