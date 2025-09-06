@@ -427,7 +427,8 @@ const methods = {
     if (!userSub) throw new Error("No active subscription found");
 
     // Get fresh data from Stripe to ensure accuracy
-    const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+    const { initializeStripe } = require("../utils/stripeHelper");
+    const stripe = initializeStripe();
     let trialEndDate;
     let stripeSubscription = null;
 

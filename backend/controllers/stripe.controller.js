@@ -1,5 +1,6 @@
 // controllers/stripe.controller.js
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const { initializeStripe } = require("../utils/stripeHelper");
+const stripe = initializeStripe();
 
 const methods = {
   /**

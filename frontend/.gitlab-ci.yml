@@ -12,6 +12,7 @@ build:
   image: docker:20.10.16
   stage: build
   only:
+    - staging
     - production
   services:
     - docker:20.10.16-dind
@@ -32,6 +33,7 @@ deploy:
   environment: $CI_COMMIT_REF_NAME
   stage: deploy
   only:
+    - staging
     - production
 
   before_script:

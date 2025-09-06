@@ -20,7 +20,9 @@ const OnboardingChecklistDrawer: React.FC = () => {
     resetFor,
     openWelcome,
     setSteps,
-    reset
+    reset,
+    activeFlow,
+    activeModuleKey
   } = useTour()
 
   // Flatten items for progress
@@ -31,7 +33,7 @@ const OnboardingChecklistDrawer: React.FC = () => {
   const uniqueFullIds = Array.from(new Set(allFull.map(it => it.id)))
   const completedFull = uniqueFullIds.filter(id => checklist[id]).length
 
-  // Auto-update checklist based on tour progress
+  // ✅ Enhanced auto-update for both group and individual tours
   useEffect(() => {
     if (steps.length > 0 && started) {
       // Get current step
@@ -39,13 +41,14 @@ const OnboardingChecklistDrawer: React.FC = () => {
       if (currentStep) {
         const checklistId = mapStepToChecklist(currentStep.id)
         if (checklistId && !checklist[checklistId]) {
+          console.log(`🎯 Auto-checking item: ${checklistId} for step: ${currentStep.id} (${activeFlow === 'group' ? 'Group Tour' : `Module: ${activeModuleKey}`})`)
           toggleItem(checklistId)
         }
       }
     }
-  }, [currentIndex, steps, started])
+  }, [currentIndex, steps, started, activeFlow, activeModuleKey])
 
-  // Auto-update checklist when tour step is visited
+  // ✅ Auto-update checklist for completed steps (both group and individual tours)
   useEffect(() => {
     if (steps.length > 0) {
       const completedSteps = steps.slice(0, currentIndex + 1)
@@ -53,11 +56,64 @@ const OnboardingChecklistDrawer: React.FC = () => {
       completedSteps.forEach(step => {
         const checklistId = mapStepToChecklist(step.id)
         if (checklistId && !checklist[checklistId]) {
+          console.log(`✅ Marking completed: ${checklistId} for step: ${step.id}`)
           toggleItem(checklistId)
         }
       })
     }
   }, [currentIndex, steps])
+
+  // ✅ Monitor tour completion for both flows
+  useEffect(() => {
+    // Group tour completion check
+    if (activeFlow === 'group' && started && currentIndex >= steps.length - 1) {
+      console.log('🎉 Group tour completed! Updating relevant checklist items.')
+      // Mark group tour specific items as completed
+      const groupTourItems = [
+        'resume-manager-upload',
+        'auto-apply-link', 
+        'ai-tailored-upload',
+        'ai-resume-create'
+      ]
+      groupTourItems.forEach(itemId => {
+        if (!checklist[itemId]) {
+          toggleItem(itemId)
+        }
+      })
+    }
+
+    // Individual module tour completion check
+    if (activeFlow === 'module' && activeModuleKey && started && currentIndex >= steps.length - 1) {
+      console.log(`🎯 Module tour completed for: ${activeModuleKey}`)
+      // Auto-check relevant items based on completed module
+      handleModuleTourCompletion(activeModuleKey)
+    }
+  }, [activeFlow, activeModuleKey, started, currentIndex, steps.length])
+
+  // ✅ Handle module-specific tour completion
+  const handleModuleTourCompletion = (moduleKey: string) => {
+    const moduleCompletionMap: Record<string, string[]> = {
+      'resume-manager': ['resume-manager-upload', 'resume-manager-save'],
+      'auto-apply': ['auto-apply-link', 'auto-apply-20'],
+      'initialize-resume-generation': ['ai-tailored-upload', 'ai-tailored-run'],
+      'ai-single-resume-generator': ['ai-tailored-upload', 'ai-tailored-run'],
+      'ai-bulk-resume-generator': ['ai-tailored-upload', 'ai-tailored-run'],
+      'ai-resume-builder': ['ai-resume-history', 'ai-resume-create'],
+      'main-coverletter': ['ai-cover-upload', 'ai-cover-generate'],
+      'ai-resume-score': ['resume-score-upload', 'resume-score-generate'],
+      'ai-interview-guide': ['ai-guide-upload', 'ai-guide-questions', 'ai-guide-mock'],
+      'analytics': ['analytics-session', 'analytics-report'],
+      'settings': ['settings-plan']
+    }
+
+    const itemsToCheck = moduleCompletionMap[moduleKey] || []
+    itemsToCheck.forEach(itemId => {
+      if (!checklist[itemId]) {
+        console.log(`📋 Auto-checking ${itemId} after ${moduleKey} tour completion`)
+        toggleItem(itemId)
+      }
+    })
+  }
 
   // Load saved checklist on mount
   useEffect(() => {
@@ -74,12 +130,12 @@ const OnboardingChecklistDrawer: React.FC = () => {
     localStorage.setItem("onboarding_checklist", JSON.stringify(checklist))
   }, [checklist])
 
-  // Reset all tour data and restart
+  // ✅ Enhanced reset with better tour flow handling
   const handleResetTour = () => {
     // Clear all tour status from localStorage
-    const keysToRemove:any = []
+    const keysToRemove: string[] = []
     for (let i = 0; i < localStorage.length; i++) {
-      const key:any = localStorage.key(i)
+      const key = localStorage.key(i)
       if (key && key.startsWith('ra_tour_')) {
         keysToRemove.push(key)
       }
@@ -101,11 +157,23 @@ const OnboardingChecklistDrawer: React.FC = () => {
     })
     setChecklist(clearedChecklist)
     
+    console.log('🔄 Tour reset completed - Group tour will restart')
+    
     // Open welcome dialog
     openWelcome()
     
     // Close drawer
     setOpen(false)
+  }
+
+  // ✅ Display current tour status
+  const getCurrentTourStatus = () => {
+    if (!started) return "No active tour"
+    if (activeFlow === 'group') return `Group Tour (${currentIndex + 1}/${steps.length})`
+    if (activeFlow === 'module' && activeModuleKey) {
+      return `${activeModuleKey} Tour (${currentIndex + 1}/${steps.length})`
+    }
+    return "Tour active"
   }
 
   return (
@@ -125,8 +193,9 @@ const OnboardingChecklistDrawer: React.FC = () => {
 
       <aside
         className={`fixed right-0 top-1/2 -translate-y-1/2 
-        h-[72%] w-80 bg-[#1A1A1A] border-l border-white/10 z-50 shadow-xl 
-        transform transition-transform duration-300 
+        ${advanced ? "h-[85%]" : "h-[72%]"}
+        w-80 bg-[#1A1A1A] border-l border-white/10 z-50 shadow-xl 
+        flex flex-col transition-all duration-300
         ${open ? "translate-x-0" : "translate-x-full"}
         sm:w-96 w-full max-w-sm`}
       >
@@ -141,6 +210,15 @@ const OnboardingChecklistDrawer: React.FC = () => {
             <IoMdClose />
           </button>
         </div>
+
+        {/* ✅ Tour Status Display */}
+        {started && (
+          <div className="px-4 py-2 bg-purple-900/30 border-b border-white/10">
+            <p className="text-sm text-purple-300">
+              🎯 Active: {getCurrentTourStatus()}
+            </p>
+          </div>
+        )}
 
         <div className="checklist-body">
           {!advanced ? (
@@ -214,7 +292,9 @@ const OnboardingChecklistDrawer: React.FC = () => {
                   Back to Quick List
                 </button>
               )}
-              <button className="btn-purple flex-1">Save Preferences</button>
+              <button className="btn-purple flex-1" onClick={() => {
+                setOpen(false)
+              }}>Save Preferences</button>
             </div>
           </div>
         </div>

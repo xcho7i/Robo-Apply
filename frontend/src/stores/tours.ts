@@ -12,24 +12,84 @@ export type TourStep = {
   route?: string
   scroll?: "center" | "start"
   onEnter?: () => void
+  checklistItem?: string // ✅ Direct mapping to checklist item
 }
 
 /* -------------------- STEP GROUPS -------------------- */
 export const sidebarEntrySteps: TourStep[] = [
-  { id: "sb_sidebar", target: "[data-tour='sidebar']", title: "Navigation Sidebar", content: "From here you can open all modules." },
-  { id: "rm_nav", route: "/resume-manager", target: "[data-tour='nav-resume-manager']", title: "Resume Manager", content: "This is your starting point to upload, view, and manage resume profiles efficiently.", scroll: "start" },
+  { 
+    id: "sb_sidebar", 
+    target: "[data-tour='sidebar']", 
+    title: "Navigation Sidebar", 
+    content: "From here you can open all modules." 
+  },
+  { 
+    id: "rm_nav", 
+    route: "/resume-manager", 
+    target: "[data-tour='nav-resume-manager']", 
+    title: "Resume Manager", 
+    content: "This is your starting point to upload, view, and manage resume profiles efficiently.", 
+    scroll: "start" 
+  },
 ]
 
+// ✅ Enhanced Resume Manager Steps with checklist mapping
 export const resumeManagerSteps: TourStep[] = [
-  { id: "rm_upload", route: "/resume-manager", target: "[data-tour='rm-upload-btn']", title: "Upload Resume", content: "Upload a new resume from here.", scroll: "center" },
-  { id: "rm_workspace", route: "/resume-manager", target: "[data-tour='rm-workspace']", title: "Edit your resumes/CV's", content: "This is the full workspace area — both heading and content.", scroll: "start" },
+  { 
+    id: "rm_upload", 
+    route: "/resume-manager", 
+    target: "[data-tour='rm-upload-btn']", 
+    title: "Upload Resume", 
+    content: "Upload a new resume from here to get started with your profile management.", 
+    scroll: "center",
+    checklistItem: "resume-manager-upload"
+  },
+  { 
+    id: "rm_workspace", 
+    route: "/resume-manager", 
+    target: "[data-tour='rm-workspace']", 
+    title: "Edit your resumes/CV's", 
+    content: "This is the full workspace area — both heading and content. Save your changes here.", 
+    scroll: "start",
+    checklistItem: "resume-manager-save"
+  },
 ]
 
+// ✅ Enhanced Auto Apply Steps
 export const autoApplySteps: TourStep[] = [
-  { id: "sb_nav_auto", target: "[data-tour='nav-autoapply']", title: "AutoApply", content: "Now let's open AutoApply.", route: "/auto-apply" },
-  { id: "aa_overview", route: "/auto-apply", target: "[data-tour='overview-section']", title: "Overview", content: "Daily limit, plan progress, totals.", scroll: "center" },
-  { id: "aa_start", route: "/auto-apply", target: "[data-tour='start-applying-section']", title: "Start Applying Jobs", content: "Apply filters and press the purple button.", scroll: "center" },
-  { id: "aa_platforms", route: "/auto-apply", target: "[data-tour='integrated-platforms-block']", title: "Integrated Platforms", content: "Connect LinkedIn, Indeed, ZipRecruiter, Dice, Monster, SimplyHired.", scroll: "start" },
+  { 
+    id: "sb_nav_auto", 
+    target: "[data-tour='nav-autoapply']", 
+    title: "AutoApply", 
+    content: "Now let's open AutoApply to start automated job applications.", 
+    route: "/auto-apply",
+    checklistItem: "auto-apply-link"
+  },
+  { 
+    id: "aa_overview", 
+    route: "/auto-apply", 
+    target: "[data-tour='overview-section']", 
+    title: "Overview", 
+    content: "Daily limit, plan progress, totals.", 
+    scroll: "center" 
+  },
+  { 
+    id: "aa_start", 
+    route: "/auto-apply", 
+    target: "[data-tour='start-applying-section']", 
+    title: "Start Applying Jobs", 
+    content: "Apply filters and press the purple button. Try to apply to at least 20 jobs!", 
+    scroll: "center",
+    checklistItem: "auto-apply-20"
+  },
+  { 
+    id: "aa_platforms", 
+    route: "/auto-apply", 
+    target: "[data-tour='integrated-platforms-block']", 
+    title: "Integrated Platforms", 
+    content: "Connect LinkedIn, Indeed, ZipRecruiter, Dice, Monster, SimplyHired.", 
+    scroll: "start" 
+  },
 ]
 
 /* -------------------- AI Steps -------------------- */
@@ -77,6 +137,7 @@ export const aiTailoredSubmenuSteps: TourStep[] = [
   },
 ]
 
+// ✅ AI Dashboard Steps with checklist integration
 export const aiDashboardPageSteps: TourStep[] = [
   {
     id: "ai_dash_heading",
@@ -112,7 +173,7 @@ export const aiDashboardPageSteps: TourStep[] = [
   },
 ]
 
-// /ai-single-resume-generator
+// ✅ AI Single Resume Generator Steps
 export const aiSingleSteps: TourStep[] = [
   {
     id: "ai_single_upload",
@@ -121,12 +182,13 @@ export const aiSingleSteps: TourStep[] = [
     title: "Upload Resume",
     content: "Add your resume to start analyzing, editing, or creating tailored versions.",
     scroll: "center",
+    checklistItem: "ai-tailored-upload"
   },
   {
     id: "ai_single_tech",
     route: "/ai-single-resume-generator",
     target: "[data-tour='ai-single-techInfo']",
-    title: "Add Info",
+    title: "Add Job Info",
     content: "Paste the job link or enter the job description.",
     scroll: "center",
   },
@@ -137,10 +199,11 @@ export const aiSingleSteps: TourStep[] = [
     title: "Core Settings",
     content: "Choose your preferred language and set your experience level to tailor resume suggestions.",
     scroll: "center",
+    checklistItem: "ai-tailored-run"
   },
 ]
 
-// /ai-bulk-resume-generator
+// ✅ AI Bulk Resume Generator Steps
 export const aiBulkSteps: TourStep[] = [
   {
     id: "ai_bulk_upload",
@@ -149,6 +212,7 @@ export const aiBulkSteps: TourStep[] = [
     title: "Upload CSV",
     content: "Upload a CSV — the job list will come from here.",
     scroll: "center",
+    checklistItem: "ai-tailored-upload"
   },
   {
     id: "ai_bulk_mapping",
@@ -157,6 +221,7 @@ export const aiBulkSteps: TourStep[] = [
     title: "Column Mapping",
     content: "Map CSV columns to the fields.",
     scroll: "center",
+    checklistItem: "ai-tailored-run"
   },
   {
     id: "ai_bulk_start",
@@ -168,7 +233,7 @@ export const aiBulkSteps: TourStep[] = [
   },
 ]
 
-// Resume Builder Steps - CORRECT ROUTE
+// ✅ AI Resume Builder Steps with checklist mapping
 export const aiResumeBuilder: TourStep[] = [
   {
     id: "ai_res_builder_nav",
@@ -191,8 +256,9 @@ export const aiResumeBuilder: TourStep[] = [
     route: "/scan-resume/main-ResumeBuilder",
     target: "[data-tour='ai-res-builder-addNewRes']",
     title: "New Resume",
-    content: "Create a fresh resume from scratch using guided AI tools.",
+    content: "Create a fresh resume from scratch using guided AI tools. Check your resume history here.",
     scroll: "center",
+    checklistItem: "ai-resume-history"
   },
   {
     id: "ai_res_builder_create",
@@ -201,9 +267,11 @@ export const aiResumeBuilder: TourStep[] = [
     title: "Create Resume First",
     content: "Start by building your resume to unlock editing and customization features.",
     scroll: "center",
+    checklistItem: "ai-resume-create"
   },
 ]
 
+// ✅ AI Cover Letter Steps
 export const aiCoverLetter: TourStep[] = [
   {
     id: "ai_cover_heading",
@@ -212,6 +280,7 @@ export const aiCoverLetter: TourStep[] = [
     title: "My Cover Letters",
     content: "View, edit, and share your saved cover letters in one place.",
     scroll: "center",
+    checklistItem: "ai-cover-upload"
   },
   {
     id: "ai_cover_add",
@@ -228,9 +297,11 @@ export const aiCoverLetter: TourStep[] = [
     title: "Create Cover Letter First",
     content: "Build your first cover letter to enable editing and sharing options.",
     scroll: "center",
+    checklistItem: "ai-cover-generate"
   },
 ]
 
+// ✅ AI Resume Score Steps
 export const aiResumeScore: TourStep[] = [
   {
     id: "ai_scan_heading",
@@ -241,23 +312,26 @@ export const aiResumeScore: TourStep[] = [
     scroll: "center",
   },
   {
-    id: "ai_scan_generate",
-    route: "/scan",
-    target: "[data-tour='ai-scan-generateBtn']",
-    title: "Generate Score",
-    content: "Run the AI scan to evaluate your resume and get improvement suggestions.",
-    scroll: "center",
-  },
-  {
     id: "ai_scan_drag",
     route: "/scan",
     target: "[data-tour='ai-scan-dragResume']",
     title: "Upload Resume for Scan",
     content: "Drag and drop your resume to analyze its quality, relevance, and score instantly.",
     scroll: "center",
+    checklistItem: "resume-score-upload"
+  },
+  {
+    id: "ai_scan_generate",
+    route: "/scan",
+    target: "[data-tour='ai-scan-generateBtn']",
+    title: "Generate Score",
+    content: "Run the AI scan to evaluate your resume and get improvement suggestions.",
+    scroll: "center",
+    checklistItem: "resume-score-generate"
   },
 ]
 
+// ✅ AI Interview Guide Steps
 export const aiInterviewGuid: TourStep[] = [
   {
     id: "ai_interview_heading",
@@ -266,6 +340,7 @@ export const aiInterviewGuid: TourStep[] = [
     title: "AI Interview Guide",
     content: "Get personalized interview questions and tips based on your resume and job role.",
     scroll: "center",
+    checklistItem: "ai-guide-upload"
   },
   {
     id: "ai_interview_new",
@@ -274,6 +349,7 @@ export const aiInterviewGuid: TourStep[] = [
     title: "New Interview Guide",
     content: "Generate a fresh AI-based interview guide tailored to your resume and role.",
     scroll: "center",
+    checklistItem: "ai-guide-questions"
   },
   {
     id: "ai_interview_create",
@@ -285,28 +361,29 @@ export const aiInterviewGuid: TourStep[] = [
   },
 ]
 
-// interview copilot
+// ✅ AI Interview Copilot Steps
 export const aiInterviewCopilot: TourStep[] = [
   {
-    id: "ai_analytics_session",
+    id: "ai_copilot_nav",
     route: "/analytics",
     target: "[data-tour='ai-copilot-nav']",
     title: "AI Interview Copilot",
     content: "Practice job-specific interview questions, get instant feedback, and improve your answers with real-time AI support.",
     scroll: "center",
+    checklistItem: "ai-guide-mock"
   },
-
 ]
 
-// Analytics
+// ✅ Analytics Steps
 export const aiAnalytics: TourStep[] = [
   {
     id: "ai_analytics_session",
     route: "/analytics",
     target: "[data-tour='ai-analytics-sessionDetails']",
-    title: "Analytics",
+    title: "Analytics Dashboard",
     content: "Track views, applications, and session details like visit time and duration.",
     scroll: "center",
+    checklistItem: "analytics-session"
   },
   {
     id: "ai_analytics_sessionBtn",
@@ -323,6 +400,7 @@ export const aiAnalytics: TourStep[] = [
     title: "Platform Check",
     content: "Check performance across different job platforms and optimize your strategy.",
     scroll: "center",
+    checklistItem: "analytics-report"
   },
   {
     id: "ai_analytics_day",
@@ -334,7 +412,7 @@ export const aiAnalytics: TourStep[] = [
   },
 ]
 
-// Settings
+// ✅ Settings Steps
 export const settings: TourStep[] = [
   {
     id: "settings_upgrade",
@@ -343,9 +421,11 @@ export const settings: TourStep[] = [
     title: "Upgrade Plan",
     content: "Unlock premium features by upgrading to a higher plan.",
     scroll: "center",
+    checklistItem: "settings-plan"
   },
 ]
 
+// ✅ Complete tour flow
 export const fullTourSteps: TourStep[] = [
   ...sidebarEntrySteps,
   ...resumeManagerSteps,
@@ -364,29 +444,40 @@ export const fullTourSteps: TourStep[] = [
   ...settings,
 ]
 
-/* -------------------- Checklist Mapping -------------------- */
+/* -------------------- Enhanced Checklist Mapping -------------------- */
 export const mapStepToChecklist = (stepId: string): string | null => {
-  if (stepId === "rm_upload") return "resume-manager-upload"
-  if (stepId === "rm_workspace") return "resume-manager-save"
-  if (stepId === "aa_start") return "auto-apply-20"
-  if (stepId === "aa_overview" || stepId === "sb_nav_auto") return "auto-apply-link"
-  if (stepId === "ai_single_upload" || stepId === "ai_bulk_upload") return "ai-tailored-upload"
-  if (stepId === "ai_single_settings" || stepId === "ai_bulk_mapping") return "ai-tailored-run"
-  if (stepId === "ai_res_builder_add") return "ai-resume-history"
-  if (stepId === "ai_res_builder_create") return "ai-resume-create"
-  if (stepId === "ai_cover_heading") return "ai-cover-upload"
-  if (stepId === "ai_cover_add" || stepId === "ai_cover_create") return "ai-cover-generate"
-  if (stepId === "ai_scan_drag") return "resume-score-upload"
-  if (stepId === "ai_scan_generate") return "resume-score-generate"
-  if (stepId === "ai_interview_heading") return "ai-guide-upload"
-  if (stepId === "ai_interview_new" || stepId === "ai_interview_create") return "ai-guide-questions"
-  if (stepId.startsWith("ai_interview")) return "ai-guide-mock"
-  if (stepId === "ai_copilot_start") return "ai-guide-mock"
-  if (stepId === "ai_copilot_transcribe") return "ai-guide-mock"
-  if (stepId === "ai_analytics_session") return "analytics-session"
-  if (stepId === "ai_analytics_platform" || stepId === "ai_analytics_day") return "analytics-report"
-  if (stepId === "settings_upgrade") return "settings-plan"
-  return null
+  // ✅ Find step by ID and return its checklistItem if available
+  const step = fullTourSteps.find(s => s.id === stepId)
+  if (step?.checklistItem) {
+    return step.checklistItem
+  }
+
+  // ✅ Fallback mapping for backwards compatibility
+  const legacyMapping: Record<string, string> = {
+    "rm_upload": "resume-manager-upload",
+    "rm_workspace": "resume-manager-save",
+    "sb_nav_auto": "auto-apply-link",
+    "aa_start": "auto-apply-20",
+    "ai_single_upload": "ai-tailored-upload",
+    "ai_bulk_upload": "ai-tailored-upload", 
+    "ai_single_settings": "ai-tailored-run",
+    "ai_bulk_mapping": "ai-tailored-run",
+    "ai_res_builder_add": "ai-resume-history",
+    "ai_res_builder_create": "ai-resume-create",
+    "ai_cover_heading": "ai-cover-upload",
+    "ai_cover_create": "ai-cover-generate",
+    "ai_scan_drag": "resume-score-upload",
+    "ai_scan_generate": "resume-score-generate",
+    "ai_interview_heading": "ai-guide-upload",
+    "ai_interview_new": "ai-guide-questions",
+    "ai_interview_mock": "ai-guide-mock",
+    "ai_copilot_nav": "ai-guide-mock",
+    "ai_analytics_session": "analytics-session",
+    "ai_analytics_platform": "analytics-report",
+    "settings_upgrade": "settings-plan"
+  }
+
+  return legacyMapping[stepId] || null
 }
 
 /* -------------------- Module Keys -------------------- */
@@ -404,18 +495,41 @@ export type ModuleKey =
   | "analytics"
   | "settings"
 
+// ✅ Enhanced Module Steps Mapping
+export const getModuleSteps = (moduleKey: ModuleKey): TourStep[] => {
+  const moduleStepsMap: Record<ModuleKey, TourStep[]> = {
+    "group": fullTourSteps,
+    "resume-manager": resumeManagerSteps,
+    "auto-apply": autoApplySteps,
+    "initialize-resume-generation": aiDashboardPageSteps,
+    "ai-single-resume-generator": aiSingleSteps,
+    "ai-bulk-resume-generator": aiBulkSteps,
+    "ai-resume-builder": aiResumeBuilder,
+    "main-coverletter": aiCoverLetter,
+    "ai-resume-score": aiResumeScore,
+    "ai-interview-guide": aiInterviewGuid,
+    "analytics": aiAnalytics,
+    "settings": settings,
+  }
+  
+  return moduleStepsMap[moduleKey] || []
+}
+
 type TourStatus = "new" | "seen" | "skipped" | "done"
 const WELCOME_KEY = "ra_welcome_shown"
 const ANY_SKIP_KEY = "ra_any_skip"
+const TOUR_STARTED_KEY = "ra_tour_ever_started"
 
 const statusKeyFor = (k: string) => `ra_tour_${k}_status`
 const getStatus = (k: ModuleKey): TourStatus =>
   (localStorage.getItem(statusKeyFor(k)) as TourStatus) || "new"
-const setStatus = (k: ModuleKey, s: TourStatus) => localStorage.setItem(statusKeyFor(k), s)
+const setStatus = (k: ModuleKey, s: TourStatus) =>
+  localStorage.setItem(statusKeyFor(k), s)
 const setAnySkip = () => localStorage.setItem(ANY_SKIP_KEY, "1")
 const hasAnySkip = () => Boolean(localStorage.getItem(ANY_SKIP_KEY))
+const hasTourEverStarted = () => Boolean(localStorage.getItem(TOUR_STARTED_KEY))
 
-/* -------------------- Store -------------------- */
+/* -------------------- Enhanced Store -------------------- */
 type TourState = {
   welcomeOpen: boolean
   started: boolean
@@ -427,9 +541,11 @@ type TourState = {
   activeFlow?: "group" | "module"
   activeModuleKey?: ModuleKey | null
 
-  // Debug methods
+  // ✅ Enhanced methods
   debugTourState: () => void
   forceModuleTour: (moduleKey: ModuleKey, steps: TourStep[]) => void
+  switchToModuleTour: (moduleKey: ModuleKey, steps: TourStep[], path: string) => void
+  autoCheckStepItem: (stepId: string) => void // ✅ New method for auto-checking
 
   // ✅ checklist
   setChecklist: (list: Record<string, boolean>) => void
@@ -453,7 +569,7 @@ type TourState = {
   setIndex: (i: number) => void
   markDone: (id: string) => void
 
-  // ✅ tour orchestration
+  // ✅ tour orchestration - UPDATED to prevent module auto-tours
   initToursOnAppLoad: () => void
   startModuleTourIfEligible: (
     moduleKey: ModuleKey,
@@ -461,7 +577,7 @@ type TourState = {
     opts?: { showWelcome?: boolean }
   ) => void
 
-  // ✅ backward compatibility
+  // ✅ backward compatibility - UPDATED to prevent welcome auto-show
   openOnFirstVisit: (
     key: string,
     cfg?: { steps?: TourStep[]; showWelcome?: boolean } | TourStep[]
@@ -479,17 +595,6 @@ export const useTour = create<TourState>()(
         }
       }
 
-      // Helper function to auto-check checklist items
-      const autoCheckForStep = (step: TourStep) => {
-        const checklistId = mapStepToChecklist(step.id)
-        if (checklistId) {
-          const s = get()
-          if (!s.checklist[checklistId]) {
-            s.autoCheckItem(checklistId)
-          }
-        }
-      }
-
       return {
         welcomeOpen: false,
         started: false,
@@ -500,22 +605,31 @@ export const useTour = create<TourState>()(
         activeFlow: undefined,
         activeModuleKey: null,
 
-        // DEBUG METHODS
         debugTourState: () => {
           const state = get()
           console.log("🔍 TOUR DEBUG STATE:", {
-            welcomeOpen: state.welcomeOpen,
-            started: state.started,
-            dismissed: state.dismissed,
             activeFlow: state.activeFlow,
             activeModuleKey: state.activeModuleKey,
             currentIndex: state.currentIndex,
-            stepsLength: state.steps.length,
-            groupStatus: getStatus("group"),
-            resumeBuilderStatus: getStatus("ai-resume-builder"),
-            hasAnySkip: hasAnySkip(),
-            currentLocation: state.getLocation?.(),
+            totalSteps: state.steps.length,
+            started: state.started,
+            checklist: state.checklist,
+            tourEverStarted: hasTourEverStarted()
           })
+        },
+
+        // ✅ Enhanced auto-check method
+        autoCheckStepItem: (stepId: string) => {
+          const checklistId = mapStepToChecklist(stepId)
+          if (checklistId) {
+            const s = get()
+            if (!s.checklist[checklistId]) {
+              console.log(`✅ Auto-checking: ${checklistId} for step: ${stepId}`)
+              set(state => ({
+                checklist: { ...state.checklist, [checklistId]: true }
+              }))
+            }
+          }
         },
 
         forceModuleTour: (moduleKey, steps) => {
@@ -529,16 +643,48 @@ export const useTour = create<TourState>()(
             currentIndex: 0,
           })
           goToRouteIfNeeded(steps[0])
-          // Auto-check first step
-          if (steps[0]) autoCheckForStep(steps[0])
+        },
+
+        // ✅ Enhanced module tour switching
+        switchToModuleTour: (moduleKey: ModuleKey, steps: TourStep[], path: string) => {
+          const s = get()
+
+          // 1️⃣ Mark current tour as skipped
+          if (s.activeFlow === "group") {
+            setAnySkip()
+            setStatus("group", "skipped")
+          } else if (s.activeModuleKey) {
+            setStatus(s.activeModuleKey, "skipped")
+          }
+
+          // 2️⃣ Start new module tour
+          set({
+            steps,
+            activeFlow: "module",
+            activeModuleKey: moduleKey,
+            welcomeOpen: false,
+            started: true,
+            dismissed: false,
+            currentIndex: 0,
+          })
+
+          // 3️⃣ Navigate to module
+          if (path && s.nav) {
+            s.nav(path)
+          }
         },
 
         setChecklist: (list) => set({ checklist: list }),
-        toggleItem: (id) =>
-          set((s) => ({ checklist: { ...s.checklist, [id]: !s.checklist[id] } })),
         
+        toggleItem: (id) =>
+          set((s) => ({
+            checklist: { ...s.checklist, [id]: !s.checklist[id] },
+          })),
+          
         autoCheckItem: (id) =>
-          set((s) => ({ checklist: { ...s.checklist, [id]: true } })),
+          set((s) => ({ 
+            checklist: { ...s.checklist, [id]: true } 
+          })),
 
         setNavigator: (fn) => set({ nav: fn }),
         setLocationGetter: (fn) => set({ getLocation: fn }),
@@ -550,55 +696,93 @@ export const useTour = create<TourState>()(
           const s = get()
           set({ started: true, welcomeOpen: false })
           goToRouteIfNeeded(s.steps[0])
-          // Auto-check first step when tour starts
-          if (s.steps[0]) autoCheckForStep(s.steps[0])
         },
 
-        reset: () => set({ started: false, dismissed: false, currentIndex: 0 }),
-
-        skip: () => set((s) => {
-          setAnySkip()
-          if (s.activeModuleKey) setStatus(s.activeModuleKey, "skipped")
-          return { started: false, dismissed: true, welcomeOpen: false, currentIndex: 0 }
+        reset: () => set({ 
+          started: false, 
+          dismissed: false, 
+          currentIndex: 0,
+          activeFlow: undefined,
+          activeModuleKey: null 
         }),
 
-        next: () => set((s) => {
-          const nextIndex = s.currentIndex + 1
-          if (nextIndex >= s.steps.length) {
-            if (s.activeModuleKey) setStatus(s.activeModuleKey, "done")
-            return { started: false, currentIndex: 0 }
-          }
-          goToRouteIfNeeded(s.steps[nextIndex])
-          // Auto-check next step
-          if (s.steps[nextIndex]) autoCheckForStep(s.steps[nextIndex])
-          return { currentIndex: nextIndex }
-        }),
+        skip: () =>
+          set((s) => {
+            setAnySkip()
+            if (s.activeModuleKey) setStatus(s.activeModuleKey, "skipped")
+            return {
+              started: false,
+              dismissed: true,
+              welcomeOpen: false,
+              currentIndex: 0,
+              activeFlow: undefined,
+              activeModuleKey: null
+            }
+          }),
 
-        prev: () => set((s) => {
-          const prevIndex = Math.max(0, s.currentIndex - 1)
-          goToRouteIfNeeded(s.steps[prevIndex])
-          return { currentIndex: prevIndex }
-        }),
+        next: () =>
+          set((s) => {
+            const nextIndex = s.currentIndex + 1
+            
+            // ✅ Auto-check current step before moving to next
+            const currentStep = s.steps[s.currentIndex]
+            if (currentStep?.checklistItem && !s.checklist[currentStep.checklistItem]) {
+              get().autoCheckItem(currentStep.checklistItem)
+            }
+            
+            if (nextIndex >= s.steps.length) {
+              // ✅ Tour completed
+              if (s.activeModuleKey && s.activeModuleKey !== "group") {
+                setStatus(s.activeModuleKey, "done")
+              }
+              return { 
+                started: false, 
+                currentIndex: 0,
+                activeFlow: undefined,
+                activeModuleKey: null
+              }
+            }
+            
+            goToRouteIfNeeded(s.steps[nextIndex])
+            return { currentIndex: nextIndex }
+          }),
+
+        prev: () =>
+          set((s) => {
+            const prevIndex = Math.max(0, s.currentIndex - 1)
+            goToRouteIfNeeded(s.steps[prevIndex])
+            return { currentIndex: prevIndex }
+          }),
 
         setIndex: (i) => {
           const s = get()
           set({ currentIndex: i })
           goToRouteIfNeeded(s.steps[i])
-          // Auto-check when index is set
-          if (s.steps[i]) autoCheckForStep(s.steps[i])
         },
 
         markDone: (id) => {
-          // Your existing checklist logic
+          console.log("✅ Mark done:", id)
+          // ✅ Auto-check related checklist item
+          const checklistId = mapStepToChecklist(id)
+          if (checklistId) {
+            get().autoCheckItem(checklistId)
+          }
         },
 
+        // ✅ UPDATED - Only initialize if no tour has ever been started
         initToursOnAppLoad: () => {
+          console.log("🚀 Initializing tours on app load...")
           
-          // Only show group tour if no skips and group tour is new
+          // Don't auto-start if tour has ever been started
+          if (hasTourEverStarted()) {
+            console.log("⏭️ Tour has been started before, skipping auto-init")
+            return
+          }
+          
           if (!hasAnySkip() && getStatus("group") === "new") {
             const showWelcome = !localStorage.getItem(WELCOME_KEY)
             if (showWelcome) localStorage.setItem(WELCOME_KEY, "1")
-            
+
             setStatus("group", "seen")
             set({
               steps: fullTourSteps,
@@ -609,57 +793,46 @@ export const useTour = create<TourState>()(
               dismissed: false,
               currentIndex: 0,
             })
+
+            if (!showWelcome) {
+              const firstStep = get().steps[0]
+              goToRouteIfNeeded(firstStep)
+            }
             
-            const firstStep = get().steps[0]
-            goToRouteIfNeeded(firstStep)
-            // Auto-check first step if tour starts immediately
-            if (!showWelcome && firstStep) autoCheckForStep(firstStep)
-            
-          } else {
-            console.log("❌ Group tour conditions not met:", {
-              hasAnySkip: hasAnySkip(),
-              groupStatus: getStatus("group")
-            })
+            console.log("🎯 Group tour initialized")
           }
         },
 
+        // ✅ UPDATED - Don't auto-start module tours if main tour never started
         startModuleTourIfEligible: (moduleKey, steps, opts) => {
+          if (moduleKey === "group" || !steps?.length) return
           
-          // Don't show module tours if it's the group module
-          if (moduleKey === "group" || !steps?.length) {
-            console.log("❌ Invalid module or no steps")
+          // Don't start module tours if main tour has never been started
+          if (!hasTourEverStarted()) {
+            console.log(`🚫 Cannot start ${moduleKey} tour - main tour has never been started`)
             return
           }
           
-          // RELAXED CONDITIONS - Show if:
-          // 1. Group tour has been interacted with (seen, skipped, or done) OR
-          // 2. User has skipped any tour before
           const groupStatus = getStatus("group")
           const moduleStatus = getStatus(moduleKey)
-          
-          console.log("📊 Tour Status Check:", {
-            groupStatus,
-            moduleStatus,
-            hasAnySkip: hasAnySkip()
-          })
-          
-          // Don't show if this specific module tour is already done
+
+          // Don't start if module already completed
           if (moduleStatus === "done") {
-            console.log("❌ Module already completed")
+            console.log(`⏭️ Module ${moduleKey} already completed, skipping tour`)
             return
           }
-          
-          // Show tour if group has been seen/skipped OR if any skip exists
+
+          // Check if user can start tours (either completed group tour or skipped something)
           const canShowTour = groupStatus !== "new" || hasAnySkip()
-          
           if (!canShowTour) {
-            console.log("❌ Cannot show tour - group tour hasn't been initiated")
+            console.log(`🚫 Cannot start ${moduleKey} tour - group tour not completed yet`)
             return
           }
 
           const showWelcome = opts?.showWelcome ?? false
           setStatus(moduleKey, "seen")
-          
+
+          console.log(`🎯 Starting module tour: ${moduleKey}`)
           set({
             steps,
             activeFlow: "module",
@@ -669,29 +842,54 @@ export const useTour = create<TourState>()(
             dismissed: false,
             currentIndex: 0,
           })
-          
-          // Only navigate if welcome is not shown
+
           if (!showWelcome) {
             goToRouteIfNeeded(steps[0])
-            // Auto-check first step when module tour starts
-            if (steps[0]) autoCheckForStep(steps[0])
           }
         },
 
+        // ✅ UPDATED - Don't auto-show welcome for module visits
         openOnFirstVisit: (key, cfg) => {
           const k = key as ModuleKey
           let steps: TourStep[] | undefined
           let wantWelcome = true
-          if (Array.isArray(cfg)) steps = cfg
-          else if (cfg) {
+          
+          if (Array.isArray(cfg)) {
+            steps = cfg
+          } else if (cfg) {
             steps = cfg.steps
             if (typeof cfg.showWelcome === "boolean") wantWelcome = cfg.showWelcome
           }
-          if (!steps?.length) return
+
+          // ✅ Use getModuleSteps if no steps provided
+          if (!steps?.length) {
+            steps = getModuleSteps(k)
+          }
+          
+          if (!steps?.length) {
+            console.warn(`⚠️ No steps found for module: ${k}`)
+            return
+          }
+
+          // ✅ Don't auto-show welcome for module visits unless tour has been started before
+          if (k !== "group") {
+            if (!hasTourEverStarted()) {
+              console.log(`🚫 Cannot start ${k} tour - main tour has never been started`)
+              return
+            }
+            
+            const groupStatus = getStatus("group")
+            const canStart = groupStatus !== "new" || hasAnySkip()
+            if (!canStart) {
+              console.log(`🚫 Cannot start ${k} tour - group tour must be completed first`)
+              return
+            }
+          }
 
           const canWelcome = wantWelcome && !localStorage.getItem(WELCOME_KEY)
           if (canWelcome) localStorage.setItem(WELCOME_KEY, "1")
 
+          console.log(`🎯 Opening tour for: ${k}`)
           set({
             steps,
             activeFlow: k === "group" ? "group" : "module",
@@ -701,19 +899,74 @@ export const useTour = create<TourState>()(
             dismissed: false,
             currentIndex: 0,
           })
-          
+
           const firstStep = get().steps[0]
           goToRouteIfNeeded(firstStep)
-          // Auto-check first step if tour starts immediately
-          if (!canWelcome && firstStep) autoCheckForStep(firstStep)
         },
 
         resetFor: (moduleKey) => {
+          console.log(`🔄 Resetting tour for: ${moduleKey}`)
           localStorage.removeItem(statusKeyFor(moduleKey))
-          set({ started: false, dismissed: false, currentIndex: 0 })
+          
+          // ✅ If resetting current active tour, also reset state
+          const s = get()
+          if (s.activeModuleKey === moduleKey) {
+            set({ 
+              started: false, 
+              dismissed: false, 
+              currentIndex: 0,
+              activeFlow: undefined,
+              activeModuleKey: null 
+            })
+          }
         },
       }
     },
-    { name: "onboarding_checklist_store", partialize: (s) => ({ checklist: s.checklist }) }
+    { 
+      name: "onboarding_checklist_store", 
+      partialize: (s) => ({ checklist: s.checklist }) 
+    }
   )
 )
+
+/* -------------------- Helper Functions -------------------- */
+
+// ✅ Get all checklist items that should be auto-checked for a completed module
+export const getModuleChecklistItems = (moduleKey: ModuleKey): string[] => {
+  const moduleCompletionMap: Record<ModuleKey, string[]> = {
+    "group": [
+      "resume-manager-upload", "auto-apply-link", "ai-tailored-upload", "ai-resume-create"
+    ],
+    "resume-manager": ["resume-manager-upload", "resume-manager-save"],
+    "auto-apply": ["auto-apply-link", "auto-apply-20"],
+    "initialize-resume-generation": ["ai-tailored-upload", "ai-tailored-run"],
+    "ai-single-resume-generator": ["ai-tailored-upload", "ai-tailored-run"],
+    "ai-bulk-resume-generator": ["ai-tailored-upload", "ai-tailored-run"],
+    "ai-resume-builder": ["ai-resume-history", "ai-resume-create"],
+    "main-coverletter": ["ai-cover-upload", "ai-cover-generate"],
+    "ai-resume-score": ["resume-score-upload", "resume-score-generate"],
+    "ai-interview-guide": ["ai-guide-upload", "ai-guide-questions", "ai-guide-mock"],
+    "analytics": ["analytics-session", "analytics-report"],
+    "settings": ["settings-plan"],
+  }
+
+  return moduleCompletionMap[moduleKey] || []
+}
+
+// ✅ Check if a step has an associated checklist item
+export const hasChecklistItem = (stepId: string): boolean => {
+  return mapStepToChecklist(stepId) !== null
+}
+
+// ✅ Get progress for a specific module
+export const getModuleProgress = (moduleKey: ModuleKey, checklist: Record<string, boolean>) => {
+  const items = getModuleChecklistItems(moduleKey)
+  const completed = items.filter(id => checklist[id]).length
+  return { completed, total: items.length, percentage: items.length > 0 ? (completed / items.length) * 100 : 0 }
+}
+
+// ✅ Check if module is completed based on checklist
+export const isModuleCompleted = (moduleKey: ModuleKey, checklist: Record<string, boolean>): boolean => {
+  const items = getModuleChecklistItems(moduleKey)
+  return items.length > 0 && items.every(id => checklist[id])
+}

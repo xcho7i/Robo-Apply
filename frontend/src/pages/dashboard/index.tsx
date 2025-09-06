@@ -63,12 +63,29 @@ function Dashboard() {
         )
 
         const subscriptionObj = res?.data
+        console.log(">>>>>>>>>>>>", subscriptionObj)
+
+        // if (subscriptionObj) {
+        //   setSubscription(subscriptionObj, totalJobsApplied || 0)
+
+        //   // 👇 Only check isCancelled if NOT lastPaymentFailed
+        //   if (
+        //     subscriptionObj?.subscription?.isCancelled &&
+        //     !subscriptionObj?.subscription?.isActive
+        //   ) {
+        //     setShowExpiredModal(true)
+        //   }
+        // }
 
         if (subscriptionObj) {
           setSubscription(subscriptionObj, totalJobsApplied || 0)
 
-          // 👇 Only check isCancelled if NOT lastPaymentFailed
-          if (subscriptionObj?.subscription?.isCancelled) {
+          // 👇 Show modal if subscription expired OR no active subscription found
+          if (
+            (subscriptionObj?.subscription?.isCancelled &&
+              !subscriptionObj?.subscription?.isActive) ||
+            subscriptionObj?.msg === "No active subscription found"
+          ) {
             setShowExpiredModal(true)
           }
         }

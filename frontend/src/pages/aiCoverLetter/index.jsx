@@ -913,7 +913,7 @@ const AiCoverLetterGenerator = () => {
               <Dropdown
                 className="py-3"
                 label="Select a tone*"
-                placeholder="Formal"
+                placeholder="Select an option"
                 options={toneOptions}
                 onChange={handleToneChange}
               />

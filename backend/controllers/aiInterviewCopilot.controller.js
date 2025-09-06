@@ -248,9 +248,37 @@ const methods = {
     }
   },
 
+  getSpecificResume: async (req, res) => {
+    try {
+      const {userId, _id } = req.body;
+      console.log("getSpecificResume _id =>", _id);
+      const userResumeDoc = await AddYourResume.findOne({userId: userId });
+      if (!userResumeDoc) {
+        return res.status(404).json({ msg: "User resume document not found", success: false });
+      }
+      const resume = userResumeDoc.resumes.find(r => r._id.toString() === _id);
+      if (!resume) {
+        return res.status(404).json({ msg: "Resume not found", success: false });
+      }
+      return res.status(200).json({
+        content: resume.textContent,
+        msg: "Resume fetched successfully",
+        success: true
+      });
+    } catch (error) {
+      console.error("getSpecificResume error =>", error);
+      return res.status(500).json({
+        msg: "Failed to fetch resume",
+        error: error.message,
+        success: false
+      });
+    }
+  },
+
   removeYourResume: async (req, res) => {
     try {
       const { userId, _id } = req.body;
+      
       console.log("removeYourResume _id =>", _id, userId);
 
       if (!userId) {
@@ -265,7 +293,11 @@ const methods = {
       if (!userResumeDoc) {
         return res.status(404).json({ msg: "User resume document not found", success: false });
       }
-
+      if (_id === "all") {
+        userResumeDoc.resumes = [];
+        await userResumeDoc.save();
+        return res.status(200).json({ msg: "All resumes removed successfully", success: true });
+      }
       // Find the index of the resume to remove
       const resumeIndex = userResumeDoc.resumes.findIndex(r => r._id.toString() === _id);
       if (resumeIndex === -1) {
@@ -301,19 +333,25 @@ const methods = {
         return res.status(400).json({ msg: "Missing or invalid position object.", success: false });
       }
 
+      // Remove _id field if it exists and is empty or invalid to let Mongoose generate a new one
+      const positionToAdd = { ...data.position };
+      if (positionToAdd._id === "" || positionToAdd._id === null || positionToAdd._id === undefined) {
+        delete positionToAdd._id;
+      }
+
       // Find the user's position document, or create if not exists
       let userPositionDoc = await AddYourPosition.findOne({ userId: data.userId });
-
+      console.log("userPositionDoc =>", userPositionDoc);
       if (!userPositionDoc) {
         // Create new document with the first position
         userPositionDoc = new AddYourPosition({
           userId: data.userId,
-          positions: [data.position]
+          positions: [positionToAdd]
         });
         await userPositionDoc.save();
       } else {
         // Add the new position to the existing array
-        userPositionDoc.positions.push(data.position);
+        userPositionDoc.positions.push(positionToAdd);
         await userPositionDoc.save();
       }
 
@@ -326,6 +364,38 @@ const methods = {
       console.error("addYourPosition error =>", error);
       return res.status(500).json({
         msg: "Failed to add position",
+        error: error.message,
+        success: false
+      });
+    }
+  },
+
+  updateYourPosition: async (req, res) => {
+    try {
+      const data = req.body
+      console.log("updateYourPosition data =>", data);
+      const {userId, _id, position} = data
+      if (!userId) {
+        return res.status(400).json({ msg: "Missing userId", success: false });
+      }
+      if (!_id) {
+        return res.status(400).json({ msg: "Missing _id", success: false });
+      }
+      const userPositionDoc = await AddYourPosition.findOne({ userId: userId });
+      if (!userPositionDoc) {
+        return res.status(404).json({ msg: "User position document not found", success: false });
+      }
+      const positionIndex = userPositionDoc.positions.findIndex(p => p._id.toString() === _id);
+      if (positionIndex === -1) {
+        return res.status(404).json({ msg: "Position not found", success: false });
+      }
+      userPositionDoc.positions[positionIndex] = position;
+      await userPositionDoc.save();
+      return res.status(200).json({ msg: "Position updated successfully", success: true });
+    } catch (error) {
+      console.error("updateYourPosition error =>", error);
+      return res.status(500).json({
+        msg: "Failed to update position",
         error: error.message,
         success: false
       });
@@ -346,6 +416,11 @@ const methods = {
       const userPositionDoc = await AddYourPosition.findOne({ userId: userId });
       if (!userPositionDoc) {
         return res.status(404).json({ msg: "User position document not found", success: false });
+      }
+      if (_id === "all") {
+        userPositionDoc.positions = [];
+        await userPositionDoc.save();
+        return res.status(200).json({ msg: "All positions removed successfully", success: true});
       }
       const positionIndex = userPositionDoc.positions.findIndex(p => p._id.toString() === _id);
       if (positionIndex === -1) {

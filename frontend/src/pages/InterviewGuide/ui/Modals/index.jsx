@@ -96,7 +96,7 @@ export const RefreshWarningModal = ({ isOpen, onClose, onConfirm }) => {
             </Button>
             <Button
               onClick={onConfirm}
-              className="px-6 py-3 font-medium bg-yellow hover:bg-red-700 text-white rounded-lg hover:ring-yellow-400 hover:ring-2 transition-colors">
+              className="px-6 py-3 font-medium bg-yellow hover:bg-red-700 text-black rounded-lg hover:ring-yellow-400 hover:ring-2 transition-colors">
               Leave Page
             </Button>
           </div>

@@ -67,7 +67,9 @@ const userSubscriptionSchema = new mongoose.Schema(
     isCancelled: { type: Boolean, default: false },
     cancelAt: { type: Date, default: null },
     notice:{type: String, default:null},
-    isTrialPeriod:{type: Boolean} 
+    isTrialPeriod:{type: Boolean},
+    cancelledDueToPaymentFailure: { type: Boolean, default: false },
+    lastFailedInvoiceId: { type: String, default: null } 
 
 
   },

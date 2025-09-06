@@ -485,8 +485,8 @@ const PricingSection = () => {
         </div>
       </div>
       <Elements stripe={stripePromise}>
-        <div className=" px-[17%] text-center ">
-          <p className="text-4xl font-semibold text-primary mb-14">
+        <div className="px-[10%] md:px-[17%] text-center ">
+          <p className="text-2xl md:text-4xl font-semibold text-primary mb-14">
             Choose Your Ideal Plan with AI Jobs Pricing Options
           </p>
 
@@ -693,10 +693,10 @@ const PricingSection = () => {
           data={selectedPlan}
         />
       </Elements>
-      <div className="pb-16 px-[17%] text-center ">
+      <div className="pb-16 px-[10%] md:px-[17%] text-center ">
         <PayAsYouGo />
       </div>
-      <div className="pb-16 px-[17%] text-center ">
+      <div className="pb-16 px-[10%] md:px-[17%] text-center ">
         <ConsultationJobAccelerator />
       </div>
     </>

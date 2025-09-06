@@ -39,7 +39,7 @@ const CancellationReason = () => {
       </h3>
 
       <textarea
-        className="w-full p-3  rounded border border-gray-600 text-base h-32"
+        className="w-full p-3 text-black rounded border border-gray-600 text-base h-32"
         placeholder="Please type your feedback here..."
         value={text}
         onChange={handleChange}

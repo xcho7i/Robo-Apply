@@ -39,7 +39,7 @@ export const YourResumeProvider = ({ children }) => {
       setLoading(false)
     }
   }
-
+  console.log(uploadedFiles,'uploadedfiles------------')
   // Add new uploaded files
   const addUploadedFiles = (newFiles) => {
     // Ensure newFiles is always an array
@@ -57,13 +57,27 @@ export const YourResumeProvider = ({ children }) => {
     })
   }
 
+  // Remove uploaded files or replace the entire list
+  const removeUploadedFiles = (filesToRemove) => {
+    if (filesToRemove === 'all') {
+      // Clear all files
+      setUploadedFiles([])
+    } else if (Array.isArray(filesToRemove)) {
+      // If it's an array, replace the entire list
+      setUploadedFiles(filesToRemove)
+    } else {
+      // If it's a single file ID, remove that specific file
+      setUploadedFiles((prev) => prev.filter((file) => file.id !== filesToRemove))
+    }
+  }
+
   useEffect(() => {
     // fetchResumes()
   }, [])
 
   return (
     <YourResumeContext.Provider
-      value={{ uploadedFiles, addUploadedFiles, fetchResumes, loading }}>
+      value={{ uploadedFiles, addUploadedFiles, removeUploadedFiles, fetchResumes, loading }}>
       {children}
     </YourResumeContext.Provider>
   )

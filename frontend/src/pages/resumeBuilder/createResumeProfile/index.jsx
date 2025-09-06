@@ -195,8 +195,29 @@ const CreateResumeProfile = () => {
       return
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email)) {
+      errorToast("Please enter a valid email address.")
+      setFieldErrors((prev) => ({ ...prev, email: true }))
+      return
+    }
+
+    let sanitizedPhone = formData.phone.replace(/[^\d+]/g, "")
+    if (!sanitizedPhone.startsWith("+")) {
+      sanitizedPhone = "+" + sanitizedPhone
+    }
+
+    // Remove "+" for length check
+    const phoneDigits = sanitizedPhone.replace(/\D/g, "")
+    if (phoneDigits.length < 10 || phoneDigits.length > 15) {
+      errorToast("Phone number must be between 10 and 15 digits.")
+      setFieldErrors((prev) => ({ ...prev, phone: true }))
+      return
+    }
+
     const finalFormData = {
       ...formData,
+      phone: sanitizedPhone,
       resumeTitle: resumeTitle
     }
 

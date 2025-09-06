@@ -31,8 +31,19 @@ router.get('/preview-upgrade', authPolicy, subscriptionController.previewUpgrade
 router.get('/payment-methods', authPolicy, subscriptionController.getUserPaymentMethods);
 router.post('/update-payment-method-test', authPolicy, subscriptionController.updatePaymentMethodForTesting);
 
+// Customer Portal for payment method updates
+router.post('/create-customer-portal-session', authPolicy, subscriptionController.createCustomerPortalSession);
+// Direct Customer Portal URL (uses dashboard configuration)
+router.get('/get-direct-customer-portal-url', authPolicy, subscriptionController.getDirectCustomerPortalUrl);
+// Alternative: Direct payment method update via checkout
+router.post('/create-payment-method-update-session', authPolicy, subscriptionController.createPaymentMethodUpdateSession);
+
 // Testing routes for trial emails
 router.post('/test-trial-email', authPolicy, subscriptionController.testTrialEmail);
 router.post('/test-trial-email-cron', authPolicy, subscriptionController.testTrialEmailCron);
+
+
+router.post('/updateInvoice', subscriptionController.updateInvoice);
+
 
 module.exports = router;

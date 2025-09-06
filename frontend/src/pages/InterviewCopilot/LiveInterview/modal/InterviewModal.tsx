@@ -30,6 +30,7 @@ const InterviewModal = ({
   const [loadingLoader, setLoadingLoader] = useState<boolean>(false);
   const [selectedResume, setSelectedResume] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("");
+  const [positions, setPositions] = useState<any[]>([]);
   const [selectedSpecialization, setSelectedSpecialization] =
     useState<string>(specialization);
   const [scheduleType, setScheduleType] = useState<string>("immediately");
@@ -82,7 +83,21 @@ const InterviewModal = ({
         setLoadingLoader(false);
       }
     };
-
+    const fetchPositions = async () => {
+      const res = await fetch(`${BASE_URL}${API_ENDPOINTS.GetPositions}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: userId,
+        }),
+      });
+      const result = await res.json();
+      console.log("result => ", result);
+      setPositions(result.positions || []);
+    };
+    fetchPositions();
     fetchResumes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -201,7 +216,7 @@ const InterviewModal = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-[#333333] rounded-lg p-6 w-full max-w-xl">
+      <div className="bg-[#333333] rounded-lg p-6 w-full max-w-2xl">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-white text-xl font-bold">
             Start Your Next Interview
@@ -238,14 +253,15 @@ const InterviewModal = ({
               placeholder="Role (optional)"
               value={selectedRole}
               onChange={setSelectedRole}
-              options={[
+              options={positions.length > 0 ? [
+                ...positions.map((position) => ({
+                  label: `${position.position} @ ${position.company}`,
+                  value: `${position.position} @ ${position.company}`,
+                })),
+              ] : [
                 {
-                  label: "Position Example @ Company Example",
+                  label: "No positions found",
                   value: "PositionExample@CompanyExample",
-                },
-                {
-                  label: "Position Example2 @ Company Example2",
-                  value: "PositionExample2@CompanyExample2",
                 },
               ]}
             />

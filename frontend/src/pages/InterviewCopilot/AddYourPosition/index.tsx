@@ -8,6 +8,7 @@ import {
   EditOutlined,
   EyeOutlined,
   DeleteOutlined,
+  SaveOutlined,
 } from "@ant-design/icons";
 import CircularIndeterminate from "../../../components/loader/circular";
 import SettingButton from "../SettingButton";
@@ -34,29 +35,30 @@ const AddYourPosition: React.FC = () => {
   const [isAddPositionModalVisible, setAddPositionModalVisible] = useState<boolean>(false);
   const [isSettingVisible, setIsSettingVisible] = useState<boolean>(false);
   const [positions, setPositions] = useState<Position[]>([]);
-  const [formData, setFormData] = useState<Omit<Position, "id">>({
+  const [isEdit, setIsEdit] = useState<boolean>(false);
+  const [formData, setFormData] = useState<Omit<Position, "id"> & { _id: string }>({
+    _id: "",
     position: "",
     company: "",
     companyDetails: "",
     jobDescription: "",
   });
 
-  
   const userData = JSON.parse(localStorage.getItem("user_data") || "{}")
   const userId = userData?._id
 
   useEffect(() => {
-      const fetchPositions = async () => {
-      const res = await fetch( `${BASE_URL}${API_ENDPOINTS.GetPositions}`, {
+    const fetchPositions = async () => {
+      const res = await fetch(`${BASE_URL}${API_ENDPOINTS.GetPositions}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({userId})
+        body: JSON.stringify({ userId })
       })
       const data = await res.json()
-      console.log(data,"data==================");
+      console.log(data, "data==================");
       setPositions(data.positions || [])
     }
     fetchPositions()
@@ -74,7 +76,7 @@ const AddYourPosition: React.FC = () => {
     setIsSettingVisible(true);
   };
 
-  const handleMockupInterview = () => {};
+  const handleMockupInterview = () => { };
 
   const handleLiveInterview = () => {
     setLVModalVisible((prev) => !prev);
@@ -86,7 +88,8 @@ const AddYourPosition: React.FC = () => {
 
   const handleCloseModal = () => {
     setAddPositionModalVisible(false);
-    setFormData({ position: "", company: "", companyDetails: "", jobDescription: "" });
+    setFormData({ position: "", company: "", companyDetails: "", jobDescription: "", _id: "" });
+    setIsEdit(false);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -95,53 +98,86 @@ const AddYourPosition: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    try{
-    setPositions((prev) => [
-      ...prev,
-      { ...formData, id: Date.now() }, // Unique ID for each entry
-    ]);
-    const res = await fetch( `${BASE_URL}${API_ENDPOINTS.AddPosition}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({userId, position: formData})
-    })
-    successToast("Position added successfully")
-     console.log(res,"response==================");
-    }catch(error){
-      console.log(error,"error==================");
+    try {
+      const res = await fetch(`${BASE_URL}${API_ENDPOINTS.AddPosition}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ userId, position: formData })
+      })
+      const data = await res.json()
+      setPositions((prev) => [
+        ...prev,
+        { ...formData, id: Date.now() }, // Unique ID for each entry
+      ]);
+      setIsEdit(false);
+      successToast(data.msg)
+      console.log(positions, "positions==================");
+      console.log(data, "response==================");
+    } catch (error) {
+      console.log(error, "error==================");
     }
     handleCloseModal();
   };
 
+  const editSubmit = async (id: string) => {
+    try {
+      const res = await fetch(`${BASE_URL}${API_ENDPOINTS.AddPosition}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ userId, _id: id, position: formData })
+      })
+      setIsEdit(false);
+      const newPositions = positions.map((p: any) => p._id === id ? formData : p)
+      setPositions(newPositions)
+      successToast("Position updated successfully")
+
+      console.log(res, "response==================");
+    } catch (error) {
+      console.log(error, "error==================");
+    }
+    handleCloseModal();
+  }
+
   const handleEdit = (id: string) => {
-    const positionToEdit = positions.find((p) => p._id === id);
+    const positionToEdit = positions.find((p: any) => p._id === id);
     if (positionToEdit) {
       // Remove id from formData for editing
       const { id: _, ...rest } = positionToEdit;
-      setFormData(rest);
+      setFormData({ ...rest, _id: id });
+      setFormData(rest as any);
       setAddPositionModalVisible(true);
+      setIsEdit(true);
     }
   };
 
   const handleDelete = async (id: string) => {
-    try{
-    const res = await fetch( `${BASE_URL}${API_ENDPOINTS.RemovePosition}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({userId, _id: id})
-    })
-    console.log(res,"response==================");
-    successToast("Position deleted successfully")
-    const newPositions = positions.filter((p) => p._id !== id)
-    setPositions(newPositions)
-    }catch(error){
-      console.log(error,"error==================");
+    try {
+      const res: any = await fetch(`${BASE_URL}${API_ENDPOINTS.RemovePosition}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ userId, _id: id })
+      })
+      console.log(res, "response==================");
+      const data = await res.json()
+      if (id==='all') {
+        setPositions([])
+      }
+      successToast(data.msg)
+      if (id !== 'all') {
+        const newPositions = positions.filter((p: any) => p._id !== id)
+        setPositions(newPositions)
+      }
+    } catch (error) {
+      console.log(error, "error==================");
     }
   };
 
@@ -178,8 +214,14 @@ const AddYourPosition: React.FC = () => {
                     >
                       <PlusOutlined /> <span> Create </span>
                     </Button> */}
-                    <div className="flex items-center justify-end">
-                      <div className="flex w-fit gap-4 p-2 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex w-full gap-4 p-2 rounded-lg justify-between">
+                        <Button
+                          onClick={() => handleDelete('all')}
+                          className="p-3 px-5 flex items-center whitespace-nowrap space-x-2 max-w-full text-primary min-w-max text-navbar font-bold rounded-lg bg-gradient-to-b from-gradientStart to-gradientEnd hover:ring-2 hover:ring-gradientEnd focus:ring-2 focus:ring-gradientEnd"
+                        >
+                          <DeleteOutlined /> <span>Delete All </span>
+                        </Button>
                         <Button
                           onClick={handleAddPosition}
                           className="p-3 px-5 flex items-center whitespace-nowrap space-x-2 max-w-full text-primary min-w-max text-navbar font-bold rounded-lg bg-gradient-to-b from-gradientStart to-gradientEnd hover:ring-2 hover:ring-gradientEnd focus:ring-2 focus:ring-gradientEnd"
@@ -190,27 +232,27 @@ const AddYourPosition: React.FC = () => {
                     </div>
 
                     <div className="w-full  rounded-lg">
-                      <div className="grid grid-cols-6 text-white font-semibold text-base bg-[#454545] rounded-tl-md rounded-tr-md">
-                        <div className="py-3 px-4">Position</div>
-                        <div className="py-3 px-4">Company</div>
-                        <div className="py-3 px-4">Company Details</div>
-                        <div className="py-3 px-4">Job Description</div>
-                        <div className="py-3 px-4">Action</div>
+                      <div className="display flex flex-row justify-between text-white font-semibold text-base bg-[#454545] rounded-tl-md rounded-tr-md">
+                        <div className="py-3 px-4 w-1/5">Position</div>
+                        <div className="py-3 px-4 w-1/5">Company</div>
+                        <div className="py-3 px-4 w-1/5">Company Details</div>
+                        <div className="py-3 px-4 w-1/5">Job Description</div>
+                        <div className="py-3 px-4 w-[220px]">Action</div>
                       </div>
-                      {positions.map((position) => (
+                      {positions.map((position: any) => (
                         <div
                           key={position._id}
-                          className="grid grid-cols-6 text-white text-sm border-b border-gray-700"
+                          className="display flex flex-row justify-between text-white text-sm border-b border-gray-700"
                         >
-                          <div className="py-2 px-4">{position.position}</div>
-                          <div className="py-2 px-4">{position.company}</div>
-                          <div className="py-2 px-4">
+                          <div className="py-2 px-4 w-1/5">{position.position}</div>
+                          <div className="py-2 px-4 w-1/5">{position.company}</div>
+                          <div className="py-2 px-4 w-1/5">
                             {position.companyDetails || "Fill this in"}
                           </div>
-                          <div className="py-2 px-4">
+                          <div className="py-2 px-4 w-1/5">
                             {position.jobDescription || "Fill this in"}
                           </div>
-                          <div className="py-2 px-4 flex space-x-2">
+                          <div className="py-2 px-4 flex space-x-2 w-[220px]">
 
                             <div className="group relative">
                               <Button
@@ -268,7 +310,7 @@ const AddYourPosition: React.FC = () => {
 
       {isAddPositionModalVisible && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-[#333333] rounded-lg p-6 w-full max-w-md">
+          <div className="bg-[#333333] rounded-lg p-6 w-full max-w-2xl">
             <div className="flex justify-between items-center mb-4 border-b-2 border-[#454545] pb-2">
               <h2 className="text-white text-xl font-bold">Company Details</h2>
               <button
@@ -282,8 +324,8 @@ const AddYourPosition: React.FC = () => {
               Share your job position and company details with the AI to create, intelligent, interview plans.
             </p>
             <div className="space-y-4">
-              <div className="flex gap-2">
-                <div>
+              <div className="flex gap-2 flex-row justify-between">
+                <div className="w-1/2">
                   <label className="text-white block mb-1 font-bold">Position</label>
                   <input
                     type="text"
@@ -294,7 +336,7 @@ const AddYourPosition: React.FC = () => {
                     className="w-full p-2 bg-[#454545] border-none text-white rounded"
                   />
                 </div>
-                <div>
+                <div className="w-1/2">
                   <label className="text-white block mb-1 font-bold">Company</label>
                   <input
                     type="text"
@@ -337,10 +379,17 @@ const AddYourPosition: React.FC = () => {
             </div>
             <div className="flex justify-between mt-4 space-x-4">
               <Button
-                onClick={handleSubmit}
+                onClick={isEdit ? () => editSubmit(formData._id) : handleSubmit}
                 className="p-2 px-4 bg-gradient-to-b from-gradientStart to-gradientEnd text-white rounded"
               >
-                <PlusOutlined /> <span> Create</span>
+                {
+                  isEdit ? <>
+                    <SaveOutlined /> <span> Save</span>
+                  </> : <>
+                    <PlusOutlined /> <span> Create</span>
+                  </>
+                }
+
               </Button>
               <Button
                 onClick={handleCloseModal}

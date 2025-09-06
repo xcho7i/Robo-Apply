@@ -2,7 +2,7 @@ import { ExtResp } from "@types"
 import { ExternalMessage } from "@types"
 
 export let extensionID = "omhfaemlhfikakkigibnfjcpaibpenha"
-export const latestExtensionVersion = "1.3.0"
+export const latestExtensionVersion = "1.3.4"
 let installedExtensionVersion = ""
 
 export const extensionURL =

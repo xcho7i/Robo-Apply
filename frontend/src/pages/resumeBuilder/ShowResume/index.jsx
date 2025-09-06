@@ -106,11 +106,11 @@ const ShowResume = () => {
 
       <div className="bg-almostBlack w-full border-t-dashboardborderColor border-l-dashboardborderColor border border-r-0 border-b-0">
         <div className="w-full px-3 md:px-10 py-5 md:py-10">
-          <div className="flex items-center justify-between md:px-10 lg:px-20">
-            <p className="text-primary text-lg md:text-3xl font-medium">
+          <div className="md:flex items-center justify-between md:px-10 lg:px-20">
+            <p className="text-primary text-xl md:text-3xl font-semibold">
               AI ResumeBuilder
             </p>
-            <div className="flex gap-5">
+            <div className="flex gap-3 md:gap-5">
               <Button
                 // onClick={() =>
                 //   navigate("/scan-resume/chooseTemplateCreateResume")
@@ -118,7 +118,7 @@ const ShowResume = () => {
                 onClick={() =>
                   navigate("/scan-resume/chooseTemplateCreateResume")
                 }
-                className="p-3 px-3 flex items-center space-x-2 max-w-40 min-w-max text-navbar font-bold rounded-lg bg-gradient-to-b from-gradientStart to-gradientEnd hover:ring-2 hover:ring-gradientEnd focus:ring-2 focus:ring-gradientEnd">
+                className="p-3 px-2 md:px-3 flex items-center space-x-1 md:space-x-2 max-w-40 min-w-max text-navbar font-bold rounded-lg bg-gradient-to-b from-gradientStart to-gradientEnd hover:ring-2 hover:ring-gradientEnd focus:ring-2 focus:ring-gradientEnd">
                 <ImInsertTemplate className="mr-2" />
                 Change Template
               </Button>
@@ -127,7 +127,7 @@ const ShowResume = () => {
                 //   navigate("/scan-resume/chooseTemplateCreateResume")
                 // }
                 onClick={() => navigate("/auto-apply")}
-                className="p-3 px-3 flex items-center space-x-2 max-w-40 min-w-max text-navbar font-bold rounded-lg bg-gradient-to-b from-gradientStart to-gradientEnd hover:ring-2 hover:ring-gradientEnd focus:ring-2 focus:ring-gradientEnd">
+                className="p-3 px-2 md:px-3 flex items-center space-x-1 md:space-x-2 max-w-40 min-w-max text-navbar font-bold rounded-lg bg-gradient-to-b from-gradientStart to-gradientEnd hover:ring-2 hover:ring-gradientEnd focus:ring-2 focus:ring-gradientEnd">
                 Dashboard
               </Button>
             </div>

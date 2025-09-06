@@ -1,22 +1,22 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { HiArrowLeft } from "react-icons/hi";
-import DashboardNavbar from "../../../dashboardNavbar";
-import Button from "../../../components/Button";
-import completeImage from "../../../assets/resumeBuilder/completeImg.svg";
-import starImage from "../../../assets/resumeBuilder/star.svg";
+import React, { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
+import { HiArrowLeft } from "react-icons/hi"
+import DashboardNavbar from "../../../dashboardNavbar"
+import Button from "../../../components/Button"
+import completeImage from "../../../assets/resumeBuilder/completeImg.svg"
+import starImage from "../../../assets/resumeBuilder/star.svg"
 
 const ResumeComplete = () => {
-  const navigate = useNavigate();
-  const [resumeTitle, setResumeTitle] = useState("");
+  const navigate = useNavigate()
+  const [resumeTitle, setResumeTitle] = useState("")
 
   useEffect(() => {
     // Get the resume title from localStorage and set it to the state
-    const title = localStorage.getItem("resumeTitle");
+    const title = localStorage.getItem("resumeTitle")
     if (title) {
-      setResumeTitle(title);
+      setResumeTitle(title)
     }
-  }, []);
+  }, [])
   return (
     <>
       <div className="flex flex-col bg-almostBlack h-screen">
@@ -32,8 +32,7 @@ const ResumeComplete = () => {
               </p>
               <Button
                 onClick={() => navigate("/scan-resume/showResume")}
-                className="p-3 px-3 flex items-center space-x-2 max-w-40 min-w-max text-navbar font-bold rounded-lg bg-gradient-to-b from-gradientStart to-gradientEnd hover:ring-2 hover:ring-gradientEnd focus:ring-2 focus:ring-gradientEnd"
-              >
+                className="p-3 px-3 flex items-center space-x-2 max-w-40 min-w-max text-navbar font-bold rounded-lg bg-gradient-to-b from-gradientStart to-gradientEnd hover:ring-2 hover:ring-gradientEnd focus:ring-2 focus:ring-gradientEnd">
                 <HiArrowLeft className="mr-2" />
                 Go Back
               </Button>
@@ -63,9 +62,8 @@ const ResumeComplete = () => {
                 </p>
                 <div className="justify-center flex items-center ">
                   <Button
-                    onClick={() => navigate("/scan")}
-                    className="p-3 flex items-center space-x-2 w-64 justify-center text-center text-navbar font-bold rounded-full bg-gradient-to-b from-gradientStart to-gradientEnd hover:ring-2 hover:ring-gradientEnd focus:ring-2 focus:ring-gradientEnd"
-                  >
+                    onClick={() => navigate("/scan-Main")}
+                    className="p-3 flex items-center space-x-2 w-64 justify-center text-center text-navbar font-bold rounded-full bg-gradient-to-b from-gradientStart to-gradientEnd hover:ring-2 hover:ring-gradientEnd focus:ring-2 focus:ring-gradientEnd">
                     Scan
                   </Button>
                 </div>
@@ -75,7 +73,7 @@ const ResumeComplete = () => {
         </div>
       </div>
     </>
-  );
-};
+  )
+}
 
-export default ResumeComplete;
+export default ResumeComplete

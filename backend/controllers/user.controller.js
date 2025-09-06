@@ -12,13 +12,34 @@ const mongoose = require("mongoose")
 const subscriptionPlanModel = require("../models/subscriptionPlans.model")
 const UserSubscription = require("../models/userSubscriptionModel")
 const PaymentHistory = require("../models/paymentHistory.model")
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY)
+const { initializeStripe } = require("../utils/stripeHelper");
+const stripe = initializeStripe();
+
 
 const AWS = require("aws-sdk")
 const userJobApplicationHistoryModel = require("../models/userJobApplicationHistory.model")
 const userSubscriptionModel = require("../models/userSubscriptionModel")
 
 const JobsActivity = require("../models/jobsActivity.model")
+
+// Additional model imports for account deletion
+const Resume = require("../models/resume.model")
+const CoverLetter = require("../models/coverLetter.model")
+const Feedback = require("../models/feedback.model")
+const JobPrep = require("../models/jobPrep.model")
+const AiCopilotInterviewSession = require("../models/aiCopilotInterviewSession.model")
+const UserJobSearchHistory = require("../models/userJobSearchHistory.model")
+const UserOnboarding = require("../models/userOnboarding.model")
+const ResumeManagement = require("../models/resumeManagement.model")
+const ResumeBuilder = require("../models/resumeBuilder.model")
+const ResumeScore = require("../models/resumeScore.model")
+const Subscription = require("../models/subscription.model")
+const SubscriptionCancellation = require("../models/subscriptionCancellation.model")
+const ResumeGenerationSession = require("../models/resumeGenerationSession.model")
+const LiveInterviewSettingContext = require("../models/liveInterviewSetting.context.model")
+// const LiveInterviewSettingCopilot = require("../models/liveInterviewSetting.copilot.model")
+const AddYourPosition = require("../models/addYourPosition.model")
+const AddYourResume = require("../models/addYourResume.model")
 
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -3099,13 +3120,11 @@ let methods = {
       let selectedSubscription = null
     
       if (selectedSub) {
-        const { planSnapshot, usage, isTrialPeriod } = selectedSub
+        const { planSnapshot, usage, isTrialPeriod ,isActive } = selectedSub
 
         usage.autoAppliesUsed = todayAutoApplies
 
-        const effectiveMonthlyCredits = isTrialPeriod
-          ? 60
-          : planSnapshot.monthlyCredits
+        const effectiveMonthlyCredits = planSnapshot.monthlyCredits
         const effectivePlanName = isTrialPeriod
           ? `${planSnapshot.name} Trial Period`
           : planSnapshot.name
@@ -3152,7 +3171,8 @@ let methods = {
           },
           cancelAt: selectedSub.cancelAt || null,
           isCancelled: selectedSub.isCancelled || null,
-          isTrialPeriod: isTrialPeriod || false
+          isTrialPeriod: isTrialPeriod || false,
+          isActive: isActive || false
         }
       }
 
@@ -4105,6 +4125,126 @@ let methods = {
         msg: "Failed to submit onboarding data",
         error: error.message
       })
+    }
+  },
+
+  deleteAccount: async (req, res) => {
+    try {
+      const userId = req.token._id;// Get user ID from authenticated token
+      
+      if (!userId) {
+        return res.status(401).json({
+          status: false,
+          message: "User not authenticated"
+        });
+      }
+
+      // Verify user exists
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({
+          status: false,
+          message: "User not found"
+        });
+      }
+
+      console.log(`Starting account deletion for user: ${userId}`);
+
+      // Delete all user-related data from various collections
+      const deletionResults = await Promise.allSettled([
+        // User job application history
+        userJobApplicationHistoryModel.deleteMany({ userId: userId }),
+        
+        // User job search history
+        UserJobSearchHistory.deleteMany({ userId: userId }),
+        
+        // User resumes
+        Resume.deleteMany({ userId: userId }),
+        
+        // Cover letters
+        CoverLetter.deleteMany({ userId: userId }),
+        
+        // Feedback
+        Feedback.deleteMany({ userId: userId }),
+        
+        // Job preparation data
+        JobPrep.deleteMany({ userId: userId }),
+        
+        // AI Copilot interview sessions
+        AiCopilotInterviewSession.deleteMany({ userId: userId }),
+        
+        // User onboarding data
+        UserOnboarding.deleteMany({ userId: userId }),
+        
+        // Resume management data
+        ResumeManagement.deleteMany({ userId: userId }),
+        
+        // Resume builder data
+        ResumeBuilder.deleteMany({ userId: userId }),
+        
+        // Resume scores
+        ResumeScore.deleteMany({ userId: userId }),
+        
+        // User subscriptions
+        UserSubscription.deleteMany({ userId: userId }),
+        
+        // Subscriptions
+        Subscription.deleteMany({ userId: userId }),
+        
+        // Subscription cancellations
+        SubscriptionCancellation.deleteMany({ userId: userId }),
+        
+        // Payment history
+        PaymentHistory.deleteMany({ userId: userId }),
+        
+        // Jobs activity
+        JobsActivity.deleteMany({ userId: userId }),
+        
+        // Resume generation sessions
+        ResumeGenerationSession.deleteMany({ user_id: userId }),
+        
+        // Live interview settings
+        LiveInterviewSettingContext.deleteMany({ userId: userId }),
+        // LiveInterviewSettingCopilot.deleteMany({ userId: userId }),
+        
+        // Add your position data
+        AddYourPosition.deleteMany({ userId: userId }),
+        
+        // Add your resume data
+        AddYourResume.deleteMany({ userId: userId })
+      ]);
+
+      // Check for any deletion failures
+      const failedDeletions = deletionResults.filter(result => result.status === 'rejected');
+      if (failedDeletions.length > 0) {
+        console.error('Some deletions failed:', failedDeletions);
+        // Continue with user deletion even if some related data deletion failed
+      }
+
+      // Finally, delete the user account
+      const userDeletionResult = await User.findByIdAndDelete(userId);
+      
+      if (!userDeletionResult) {
+        return res.status(500).json({
+          status: false,
+          message: "Failed to delete user account"
+        });
+      }
+
+      console.log(`Account successfully deleted for user: ${userId}`);
+
+      return res.status(200).json({
+        status: true,
+        message: "Account and all associated data have been successfully deleted"
+      });
+
+    } catch (error) {
+      console.error('Error during account deletion:', error);
+      return res.status(500).json({
+        status: false,
+        message: "Failed to delete account",
+        error: error.message
+      });
     }
   }
 }

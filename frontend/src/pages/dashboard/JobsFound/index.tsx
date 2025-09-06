@@ -7,7 +7,11 @@ import buttonIcon from "../../../assets/dashboardIcons/startApplyingBtn.svg"
 import { Button, Card, Checkbox, Flex, List } from "antd"
 import { ApplyData, Job, JobHistory } from "@types"
 
-import { activateTab, getResponseFromExtension } from "@/src/extension"
+import {
+  activateTab,
+  extensionID,
+  getResponseFromExtension
+} from "@/src/extension"
 import SearchForm from "../ui/SearchForm"
 import { saveJobHistory } from "@/src/api/functions"
 
@@ -58,6 +62,7 @@ function JobsFound() {
 
   const [generating, setGenerating] = useState(false)
   const [totalGenerating, setTotalGenerating] = useState(0)
+  const [port, setPort] = useState<chrome.runtime.Port>()
 
   // Credit confirmation modal state
   const [creditModal, setCreditModal] = useState<{
@@ -137,6 +142,14 @@ function JobsFound() {
     let error = false
 
     try {
+      // setup port
+      let port = chrome.runtime.connect(extensionID, { name: "robo-apply" })
+      setPort(port)
+      port.onDisconnect.addListener(() => {
+        console.log("Port disconnected")
+        setPort(undefined)
+      })
+
       setLoading(true)
 
       let applyData: ApplyData = jobsToApply.map((job, jobIndex) => ({
@@ -172,10 +185,10 @@ function JobsFound() {
         }
 
         applyResults.current.push(result)
-        if (r.message == "applied") {
-          saveJobHistory(result).catch((e) => console.error(e))
-          User.deductCredits("AutoApply").catch((e) => console.error(e))
-        }
+        // if (r.message == "applied") {
+        //   saveJobHistory(result).catch((e) => console.error(e))
+        //   User.deductCredits("AutoApply").catch((e) => console.error(e))
+        // }
       })
 
       // console.log({ responses })
@@ -411,6 +424,26 @@ function JobsFound() {
   function isResumeGenerated(jobId: string) {
     return !!tailoredData.find((d) => d.jobId == jobId)
   }
+
+  useEffect(() => {
+    if (!port) return
+    let listener = (message: {
+      action: "connected" | "saveJobHistory"
+      jobItem: JobHistory
+    }) => {
+      if (message.action === "saveJobHistory") {
+        saveJobHistory(message.jobItem).then((res) => {
+          // console.log("save job history with port", res)
+        })
+        User.deductCredits("AutoApply").catch((e) => console.error(e))
+      }
+    }
+    port.onMessage.addListener(listener)
+
+    return () => {
+      if (port) port.onMessage.removeListener(listener)
+    }
+  }, [port])
 
   useEffect(() => {
     if (selectedResume && tailoredApply) {

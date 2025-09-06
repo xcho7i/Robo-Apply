@@ -44,6 +44,9 @@ router.post(`/buyCredits`, authPolicy,subscriptionController.createCreditCheckou
 
 router.post(`/setPassword`, authPolicy,userController.setNewPassword); 
 
+// Account deletion route
+router.delete(`/delete-account`, authPolicy, userController.deleteAccount);
+
 
 
 

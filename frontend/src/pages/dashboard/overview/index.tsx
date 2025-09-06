@@ -96,9 +96,12 @@ const DashboardHome = () => {
     if (!values.q || values?.q?.trim() === "") {
       return alert("Please enter a valid search term.")
     }
-
-    if (values?.tailoredApply == "yes" && values.plateform != "linkedin") {
-      errorToast("Tailored Apply is only available for LinkedIn!")
+    let tailoredPlatform = ["linkedin", "dice"]
+    if (
+      values?.tailoredApply == "yes" &&
+      !tailoredPlatform.includes(values?.plateform?.toLowerCase())
+    ) {
+      errorToast("Tailored Apply is not available for seleted platform!")
       return
     }
 

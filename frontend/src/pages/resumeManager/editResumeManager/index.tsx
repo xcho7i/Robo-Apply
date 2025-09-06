@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useNavigate, useLocation, Link } from "react-router-dom"
 import uploadResumeHere from "../../../assets/resumeManagerIcons/uploadResumeIcon.svg"
 import { HiArrowLeft } from "react-icons/hi"
@@ -565,10 +565,11 @@ const EditResumeManager = () => {
 
     const resumeNameFromLocalStorage = localStorage.getItem("resumeName")
     const resumeUrlPathFromLocalStorage = localStorage.getItem("resumeUrlPath")
-    const jobTitleFromLocalStorage = localStorage.getItem("jobTitle") // Get job title from localStorage
+    const jobTitleFromLocalStorage = localStorage.getItem("jobTitle")
 
     if (!resumeNameFromLocalStorage || !resumeUrlPathFromLocalStorage) {
-      errorToast("Resume name or URL path is missing from local storage")
+      errorToast("Missing resume data. Upload Resume again from start.")
+      navigate("/resume-manager")
       return
     }
 
@@ -772,6 +773,15 @@ const EditResumeManager = () => {
 
     return () => clearTimeout(timer)
   }, [])
+
+  useEffect(() => {
+    const resumeNameFromLocalStorage = localStorage.getItem("resumeName")
+    const resumeUrlPathFromLocalStorage = localStorage.getItem("resumeUrlPath")
+
+    if (!resumeNameFromLocalStorage || !resumeUrlPathFromLocalStorage) {
+      navigate("/resume-manager")
+    }
+  }, [navigate])
 
   const isEdited = localStorage.getItem("edited") === "true"
 

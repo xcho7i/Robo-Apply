@@ -11,6 +11,7 @@ type SubResponse = {
     startDate: string
     endDate: string
     isCancelled?: boolean
+    isActive?: boolean
     usage: {
       jobApplicationsToday: number
       monthlyCreditsUsed: number

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import DashboardNavbar from "../dashboardNavbar"
 import DashboardSidebar from "../dashboardSidebar"
 import { format } from "date-fns"
@@ -13,6 +13,7 @@ const BASE_URL =
 
 const DashBoardLayout = ({ children }) => {
   const navigate = useNavigate()
+  const location = useLocation()
   const [subscription, setSubscription] = useState(null)
   const [isSubscriptionLoading, setIsSubscriptionLoading] = useState(true)
 
@@ -124,7 +125,13 @@ const DashBoardLayout = ({ children }) => {
       return "Not Available"
     }
   }
+
+  // Enhanced tour initialization logic - Only for NEW users with proper welcome flow
   useEffect(() => {
+    const TOUR_STARTED_KEY = "ra_tour_ever_started"
+    const WELCOME_SHOWN_KEY = "ra_welcome_shown"
+    
+
     const SEEN_KEY = "ra_seen_app_tour_v1" // <- stable key
     // Login/Signup ya aise routes par tour mat chalao
     const blockOn = ["/login", "/signup", "/forgot"].some((p) =>
@@ -132,18 +139,100 @@ const DashBoardLayout = ({ children }) => {
     )
     if (blockOn) return
 
-    // Already seen? kuch mat karo
-    if (localStorage.getItem(SEEN_KEY) === "1") return
+    // Get user data from localStorage
+    let userData = null
+    try {
+      const userDataStr = localStorage.getItem("user_data")
+      if (userDataStr) {
+        userData = JSON.parse(userDataStr)
+      }
+    } catch (error) {
+      console.error("Error parsing user_data from localStorage:", error)
+      return // Exit if user data parsing fails
+    }
 
-    // ✅ pehle mark seen, phir open (race condition se bachne ke liye)
-    localStorage.setItem(SEEN_KEY, "1")
+    // 🚫 EARLY EXIT: If user is not new, don't show tour at all
+    if (userData?.isNewUser === false) {
+      console.log("🚫 User is not new (isNewUser: false) - Skipping tour completely")
+      return
+    }
 
+    // Check if tour has ever been started
+    const tourEverStarted = localStorage.getItem(TOUR_STARTED_KEY) === "1"
+    const welcomeEverShown = localStorage.getItem(WELCOME_SHOWN_KEY) === "1"
+
+    console.log("🔍 Tour initialization check:", {
+      tourEverStarted,
+      welcomeEverShown,
+      isNewUser: userData?.isNewUser,
+      currentPath: location.pathname
+    })
+
+    // Show welcome ONLY if:
+    // 1. Tour has never been started AND
+    // 2. User is new (isNewUser is not false) AND
+    // 3. Welcome has never been shown OR user is explicitly marked as new
+    const shouldShowWelcome = !tourEverStarted && 
+                             userData?.isNewUser !== false && 
+                             (!welcomeEverShown || userData?.isNewUser === true)
+
+    if (!shouldShowWelcome) {
+      console.log("⏭️ Skipping welcome - conditions not met")
+      return
+    }
+
+    console.log("🎯 Showing welcome box for new user")
+
+    // Mark welcome as shown
+    localStorage.setItem(WELCOME_SHOWN_KEY, "1")
+
+    // Initialize tour store
     const tour = useTour.getState()
     tour.setNavigator((path) => navigate(path))
+    tour.setLocationGetter(() => location.pathname)
+    
+    // 🎯 FIXED: Set up tour steps but ONLY show welcome box, don't auto-start tour
     tour.setSteps(fullTourSteps)
-    tour.openWelcome()
+    tour.openWelcome() // This will show welcome box and wait for user to click "Start Tour"
+    
+    console.log("✅ Welcome box opened - waiting for user to start tour")
   }, [navigate, location.pathname])
 
+  // Add tour started tracking
+  useEffect(() => {
+    const tour = useTour.getState()
+    const originalStart = tour.start
+
+    // Override start method to track when tour actually starts
+    tour.start = () => {
+      console.log("🚀 User started the tour!")
+      localStorage.setItem("ra_tour_ever_started", "1")
+      
+      // Update user data to mark as not new anymore
+      try {
+        const userDataStr = localStorage.getItem("user_data")
+        if (userDataStr) {
+          const userData = JSON.parse(userDataStr)
+          if (userData.isNewUser) {
+            userData.isNewUser = false
+            localStorage.setItem("user_data", JSON.stringify(userData))
+            console.log("✅ Updated user as not new")
+          }
+        }
+      } catch (error) {
+        console.error("Error updating user_data:", error)
+      }
+
+      // Call original start method
+      originalStart.call(tour)
+    }
+
+    // Cleanup: restore original method when component unmounts
+    return () => {
+      tour.start = originalStart
+    }
+  }, [])
+  
   useEffect(() => {
     fetchSubscriptionData()
   }, [])

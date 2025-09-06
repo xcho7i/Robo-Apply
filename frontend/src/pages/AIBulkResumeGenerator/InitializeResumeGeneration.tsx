@@ -14,7 +14,7 @@ import CompactDropdownSelect from "./components/CompactDropdownSelect"
 import Button from "../../components/Button"
 import StaticCircularLoader from "../../components/loader/StaticCircularLoader"
 import { Sparkles, Upload, FileText, X } from "lucide-react"
-// import { successToast, errorToast } from "../../components/Toast"
+import { successToast, errorToast } from "../../components/Toast"
 import API_ENDPOINTS from "../../api/endpoints"
 import { postRequest } from "../../api/httpRequests"
 import { BASE_URL } from "../../api"
@@ -30,7 +30,7 @@ import {
   useSetupComplete,
   clearResumeGenerationStore
 } from "../../stores/aiResumeGeneration"
-
+import CircularIndeterminate from "../../components/loader/circular"
 import "./styles/docx-preview.css"
 
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card"
@@ -76,7 +76,9 @@ import {
   Trash2,
   Loader2,
   RefreshCw,
-  ChevronDown
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { generateModernResumeDocx } from "./lib/modern-resume-generator"
@@ -95,9 +97,8 @@ import { analytics } from "@/src/api/functions/analytics"
 import { getAllResumes } from "@/src/api/functions"
 import { useTour, aiDashboardPageSteps } from "@/src/stores/tours"
 
-
-const successToast = (...args: any[]) => console.log("Success Toast:", ...args)
-const errorToast = (...args: any[]) => console.error("Error Toast:", ...args)
+// const successToast = (...args: any[]) => console.log("Success Toast:", ...args)
+// const errorToast = (...args: any[]) => console.error("Error Toast:", ...args)
 
 const toast = {
   success: successToast,
@@ -232,6 +233,11 @@ interface PreviewData {
   skills: string
 }
 
+interface DeleteResult {
+  success: boolean
+  error?: string
+}
+
 const InternalInitializeResumeGeneration: React.FC<{ className?: string }> = ({
   className
 }) => {
@@ -255,12 +261,6 @@ const InternalInitializeResumeGeneration: React.FC<{ className?: string }> = ({
 
   // Deleting animation state
   const [deletingJobIds, setDeletingJobIds] = useState<Set<string>>(new Set())
-  // console.log("🏁 InitializeResumeGeneration component mounting with:", {
-  //   sessionId,
-  //   asBg,
-  //   searchParams: Object.fromEntries(searchParams.entries()),
-  //   currentTime: new Date().toISOString()
-  // })
 
   // Store hooks - using individual selectors to avoid infinite loops
   const isGeneratingFromStore = useIsGenerating()
@@ -269,14 +269,6 @@ const InternalInitializeResumeGeneration: React.FC<{ className?: string }> = ({
   const isNavigatedFromBulkGenerator = useIsNavigatedFromBulkGenerator()
   const setupComplete = useSetupComplete()
 
-  // EARLY DEBUG - Store state on mount
-  // console.log("🏪 Store state on component mount:", {
-  //   isGeneratingFromStore,
-  //   overallProgressFromStore,
-  //   apiCalls,
-  //   isNavigatedFromBulkGenerator,
-  //   setupComplete
-  // })
   const [refetchSessionData, shouldRefetchSessionData] = useState(false)
   const [jobs, setJobs] = useState<Job[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
@@ -293,9 +285,6 @@ const InternalInitializeResumeGeneration: React.FC<{ className?: string }> = ({
   const [yearsOfExperience, setYearsOfExperience] = useState("2-5")
   const [language, setLanguage] = useState("English (US)")
 
-  // useEffect(() => {
-  //   localStorage.removeItem(SESSION_ID_KEY)
-  // }, [])  // Session data state
   const [sessionData, setSessionData] = useState<any>(null)
   const [isLoadingSessionData, setLoadingSessionData] = useState(true)
   const [currentSessionJobs, setCurrentSessionJobs] = useState<any[]>([])
@@ -306,6 +295,11 @@ const InternalInitializeResumeGeneration: React.FC<{ className?: string }> = ({
   const [statusFilter, setStatusFilter] = useState("all")
   const [bulkActionFilter, setBulkActionFilter] = useState("regenerate")
   const [sortBy, setSortBy] = useState("date")
+  const [deletingLoader, setDeletingLoader] = useState(false)
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
   // Selection state for checkboxes
   const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set())
@@ -338,12 +332,13 @@ const InternalInitializeResumeGeneration: React.FC<{ className?: string }> = ({
   })
 
   const { startModuleTourIfEligible } = useTour()
-// useEffect(() => {
-//   startModuleTourIfEligible("ai-tailored", aiDashboardPageSteps, { showWelcome: false })
-// }, [startModuleTourIfEligible])
-useEffect(() => {
-  startModuleTourIfEligible("initialize-resume-generation", aiDashboardPageSteps, { showWelcome: false })
-}, [startModuleTourIfEligible])
+  useEffect(() => {
+    startModuleTourIfEligible(
+      "initialize-resume-generation",
+      aiDashboardPageSteps,
+      { showWelcome: false }
+    )
+  }, [startModuleTourIfEligible])
 
   useEffect(() => {
     return () => {
@@ -378,11 +373,6 @@ useEffect(() => {
   // Check if navigated from bulk generator and handle background loading
   useEffect(() => {
     if (asBg && isNavigatedFromBulkGenerator) {
-      // console.log(
-      //   "🚀 Detected navigation from bulk generator with background process"
-      // )
-
-      // Load data from store using getState() to avoid reactive subscriptions
       const storeData = useResumeGenerationStore.getState()
 
       if (storeData.jobs.length > 0) {
@@ -405,12 +395,6 @@ useEffect(() => {
       // Set loading state
       setIsGenerating(isGeneratingFromStore)
       setOverallProgress(overallProgressFromStore)
-
-      // console.log("🔄 Background process status:", {
-      //   uploadResume: apiCalls.uploadResume.status,
-      //   saveJobs: apiCalls.saveJobs.status,
-      //   generateResumes: apiCalls.generateResumes.status
-      // })
     }
   }, [
     asBg,
@@ -422,21 +406,6 @@ useEffect(() => {
 
   // Start background setup process when navigated from bulk generator
   useEffect(() => {
-    // DEBUG: Log all condition values to understand why the effect isn't triggering
-    // console.log("🔍 DEBUG - Background setup useEffect conditions:", {
-    //   asBg,
-    //   isNavigatedFromBulkGenerator,
-    //   setupComplete,
-    //   uploadResumeStatus: apiCalls.uploadResume.status,
-    //   saveJobsStatus: apiCalls.saveJobs.status,
-    //   allConditions:
-    //     asBg &&
-    //     isNavigatedFromBulkGenerator &&
-    //     !setupComplete &&
-    //     apiCalls.uploadResume.status === "pending" &&
-    //     apiCalls.saveJobs.status === "pending"
-    // })
-
     if (
       asBg &&
       isNavigatedFromBulkGenerator &&
@@ -481,9 +450,6 @@ useEffect(() => {
       refetchSessionDataAndWait().then(() => {
         console.log("✅ Fresh session data loaded after background completion")
       })
-      // console.log("🎉 Background process completed, removing asBg parameter...")
-
-      // Clean up the store before removing asBg parameter
       console.log("🧹 Cleaning up store before removing asBg parameter...")
       clearResumeGenerationStore()
 
@@ -541,29 +507,13 @@ useEffect(() => {
       console.log(
         "🚀 CRITICAL: Setup completed, starting automatic resume generation..."
       )
-      // console.log(
-      //   "📊 Current generateResumes status:",
-      //   apiCalls.generateResumes.status
-      // )
 
       // Only proceed if generation isn't currently running
       if (apiCalls.generateResumes.status === "pending") {
-        // console.log(
-        //   "📊 Generation status is 'pending' - checking if this is a stuck state..."
-        // )
-
         // Check if we actually have an active generation process
         const storeState = useResumeGenerationStore.getState()
         const hasActiveProcess = storeState.backgroundProcessId
 
-        // console.log("🔍 Checking for active background process:", {
-        //   backgroundProcessId: hasActiveProcess,
-        //   storeGenerating: storeState.isGenerating,
-        //   localGenerating: isGenerating,
-        //   currentTime: Date.now()
-        // })
-
-        // If no active background process ID, this means resume generation isn't actually running
         // The isGenerating flags might be stuck from setup process
         if (!hasActiveProcess) {
           console.log(
@@ -581,9 +531,6 @@ useEffect(() => {
               status: "pending", // Keep as pending to allow generation to start
               progress: 0
             })
-          // console.log(
-          //   "✅ Generation states reset - proceeding with auto-generation"
-          // )
         } else {
           console.log(
             "� CRITICAL: Active background process found - generation in progress, skipping auto-generation"
@@ -597,8 +544,6 @@ useEffect(() => {
       // Start resume generation automatically
       const startAutoGeneration = async () => {
         try {
-          // CRITICAL FIX: For bulk generation, always use jobs from store directly
-          // Don't rely on currentSessionJobs being set correctly
           const storeJobs = useResumeGenerationStore.getState().jobs
           console.log(
             "� CRITICAL: Store jobs for auto-generation:",
@@ -670,19 +615,6 @@ useEffect(() => {
     apiCalls.generateResumes.status,
     currentSessionJobs.length // Add this to re-run when jobs are loaded
   ])
-
-  // EARLY DEBUG - Auto-generation useEffect dependency tracker
-  // console.log("📊 Auto-generation dependency change detected:", {
-  //   asBg,
-  //   isNavigatedFromBulkGenerator,
-  //   setupComplete,
-  //   uploadResumeStatus: apiCalls.uploadResume.status,
-  //   saveJobsStatus: apiCalls.saveJobs.status,
-  //   generateResumesStatus: apiCalls.generateResumes.status,
-  //   currentSessionJobsLength: currentSessionJobs.length,
-  //   isAutoGenerationExecuting: isAutoGenerationExecuting.current,
-  //   timestamp: new Date().toISOString()
-  // })
 
   // Handle resume generation completion
   useEffect(() => {
@@ -756,14 +688,12 @@ useEffect(() => {
         if (response.success && response.data) {
           setSessionData(response.data)
 
-          // CRITICAL FIX: For bulk generation mode, don't populate currentSessionJobs with existing session data
           // We only want to use jobs from the store (passed from bulk generator)
           if (asBg && isNavigatedFromBulkGenerator) {
             console.log(
               "🚫 Bulk generation mode - skipping session jobs population, will use store jobs only"
             )
 
-            // In bulk generation mode, DON'T override base resume content from session
             // The store already has the correct new resume content
             console.log(
               "🚫 Skipping base resume content from session - using store content only"
@@ -791,7 +721,6 @@ useEffect(() => {
             return
           }
 
-          // Normal mode - populate session jobs as usual
           // Check if current session exists (valid session ID case)
           if (response.data.current_session?.generated_resumes) {
             console.log(
@@ -1534,22 +1463,6 @@ useEffect(() => {
         isLoading: false
       })
       return
-
-      // Original logic (commented out since we always want confirmation)
-      // if (creditValidation.needsConfirmation) {
-      //   console.log(`⚠️ Credit confirmation needed for ${actionType}`)
-      //   setCreditModal({
-      //     isOpen: true,
-      //     creditValidation,
-      //     pendingAction: action,
-      //     isLoading: false
-      //   })
-      //   return
-      // }
-
-      // // No confirmation needed, execute directly
-      // console.log(`✅ No confirmation needed, executing ${actionType}`)
-      // await action()
     } catch (error) {
       console.error("Error in credit check:", error)
       errorToast("Failed to validate credits. Please try again.")
@@ -1700,24 +1613,6 @@ useEffect(() => {
       })
       console.log(`🪟 Credit modal state set, should be visible now`)
       return
-
-      // Original logic (commented out since we always want confirmation)
-      // if (creditValidation.needsConfirmation) {
-      //   console.log(`⚠️ Credit confirmation needed for bulk ${actionType}`)
-      //   console.log(`🪟 Opening credit modal...`)
-      //   setCreditModal({
-      //     isOpen: true,
-      //     creditValidation,
-      //     pendingAction: action,
-      //     isLoading: false
-      //   })
-      //   console.log(`🪟 Credit modal state set, should be visible now`)
-      //   return
-      // }
-
-      // // No confirmation needed, execute directly
-      // console.log(`✅ No confirmation needed, executing bulk ${actionType}`)
-      // await action()
     } catch (error) {
       console.error("Error in bulk credit check:", error)
       errorToast("Failed to validate credits. Please try again.")
@@ -3622,15 +3517,6 @@ useEffect(() => {
       }
     }
 
-    // console.log("�🔍 Session ID debug for generation:", {
-    //   jobDataSessionId: jobData.session_id,
-    //   urlSessionId: sessionId,
-    //   correctSessionId: correctSessionId,
-    //   hasSessionData: !!sessionData,
-    //   previousSessionsCount: sessionData?.previous_sessions?.length || 0,
-    //   baseResumeLength: jobBaseResumeContent.length
-    // })
-
     await executeWithCreditCheck(
       "tailored_resume",
       async () => {
@@ -5075,16 +4961,6 @@ useEffect(() => {
     // Check both job.job_details.resume_score (session data) and job.resume_score (direct field)
     const resumeScore = job?.job_details?.resume_score || job?.resume_score
 
-    // console.log(
-    //   `🎯 Score debug for ${job.job_details?.job_title || "Unknown Job"}:`,
-    //   {
-    //     job_details_resume_score: job.job_details?.resume_score,
-    //     direct_resume_score: job.resume_score,
-    //     final_score: resumeScore,
-    //     has_resume_data: job.generated_resume?.has_resume_data
-    //   }
-    // )
-
     if (resumeScore !== undefined && resumeScore !== null) {
       return Math.round(resumeScore)
     }
@@ -5388,14 +5264,6 @@ useEffect(() => {
       )
     ]
 
-    // console.log("📊 Dashboard Stats Debug:", {
-    //   currentSessionJobs: validCurrentSessionJobs.length,
-    //   previousSessionJobs: validPreviousSessions.flatMap(
-    //     (s) => s.recent_generations || s.generated_resumes || []
-    //   ).length,
-    //   totalAllJobs: allJobs.length
-    // })
-
     const totalResumes = allJobs.filter(
       (job) =>
         job.generated_resume?.has_resume_data ||
@@ -5428,14 +5296,6 @@ useEffect(() => {
 
     // Ready to apply = jobs with resume data
     const readyToApply = completedJobs.length
-
-    // console.log("📊 Dashboard Stats Debug:", {
-    //   currentSessionJobs: validCurrentSessionJobs.length,
-    //   previousSessionJobs: validPreviousSessions.flatMap(
-    //     (s) => s.recent_generations || s.generated_resumes || []
-    //   ).length,
-    //   totalAllJobs: allJobs.length
-    // })
 
     return {
       totalResumes,
@@ -5652,19 +5512,73 @@ useEffect(() => {
     })
   }
 
+  // const handleSelectAll = (checked: boolean) => {
+  //   if (checked) {
+  //     const allJobIds = new Set(filteredJobs.map((job) => job.generation_id))
+  //     setSelectedJobIds(allJobIds)
+  //   } else {
+  //     setSelectedJobIds(new Set())
+  //   }
+  // }
+
+  // const isAllSelected =
+  //   filteredJobs.length > 0 &&
+  //   filteredJobs.every((job) => selectedJobIds.has(job.generation_id))
+  // const isIndeterminate = selectedJobIds.size > 0 && !isAllSelected
+
+  // Move the currentJobs calculation to the top of the component
+  // (before any functions that use it)
+  const totalPages = Math.ceil(filteredJobs.length / itemsPerPage)
+  const indexOfLastItem = currentPage * itemsPerPage
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage
+  const currentJobs = filteredJobs.slice(indexOfFirstItem, indexOfLastItem)
+
+  // Then update your handleSelectAll function:
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const allJobIds = new Set(filteredJobs.map((job) => job.generation_id))
-      setSelectedJobIds(allJobIds)
+      // Select only jobs on the current page - convert Set to Array first
+      const currentPageJobIds = currentJobs.map((job) => job.generation_id)
+      const newSelection = new Set(selectedJobIds)
+      currentPageJobIds.forEach((id) => newSelection.add(id))
+      setSelectedJobIds(newSelection)
     } else {
-      setSelectedJobIds(new Set())
+      // Deselect only jobs on the current page
+      const newSelection = new Set(selectedJobIds)
+      currentJobs.forEach((job) => {
+        newSelection.delete(job.generation_id)
+      })
+      setSelectedJobIds(newSelection)
     }
   }
 
+  // Alternative using Array.from if you prefer:
+  const handleSelectAllAlternative = (checked: boolean) => {
+    if (checked) {
+      // Select only jobs on the current page
+      const currentPageJobIds = currentJobs.map((job) => job.generation_id)
+      const newSelection = new Set([
+        ...Array.from(selectedJobIds),
+        ...currentPageJobIds
+      ])
+      setSelectedJobIds(newSelection)
+    } else {
+      // Deselect only jobs on the current page
+      const newSelection = new Set(selectedJobIds)
+      currentJobs.forEach((job) => {
+        newSelection.delete(job.generation_id)
+      })
+      setSelectedJobIds(newSelection)
+    }
+  }
+
+  // Update the isAllSelected and isIndeterminate to check current page only
   const isAllSelected =
-    filteredJobs.length > 0 &&
-    filteredJobs.every((job) => selectedJobIds.has(job.generation_id))
-  const isIndeterminate = selectedJobIds.size > 0 && !isAllSelected
+    currentJobs.length > 0 &&
+    currentJobs.every((job) => selectedJobIds.has(job.generation_id))
+
+  const isIndeterminate =
+    currentJobs.some((job) => selectedJobIds.has(job.generation_id)) &&
+    !isAllSelected
 
   // Helper to check if a job is currently processing
   const isJobProcessing = (jobId: string) => processingJobIds.has(jobId)
@@ -5711,119 +5625,6 @@ useEffect(() => {
     await handleRegenerate(jobData.generation_id)
   }
 
-  const handleDeleteJob = async (jobData: any) => {
-    handleCloseDropdown()
-
-    // Store the job data for potential restoration if API fails
-    const jobToDelete = jobData
-
-    // STEP 1: Start the vanishing animation immediately (but keep data in state)
-    setDeletingJobIds((prev) => new Set(prev).add(jobData.generation_id))
-
-    // Remove from selection immediately
-    setSelectedJobIds((prev) => {
-      const newSet = new Set(prev)
-      newSet.delete(jobData.generation_id)
-      return newSet
-    })
-
-    // STEP 2: Make DELETE API call and handle success/failure
-    try {
-      // Determine the correct session ID to use
-      let correctSessionId = jobData.session_id || sessionId
-
-      // Make DELETE API call
-      const response = await postRequest(API_ENDPOINTS.DeleteGeneration, {
-        SESSION_ID: correctSessionId,
-        generation_id: jobData.generation_id
-      })
-
-      if (response.success) {
-        // Success - show message and remove data after animation
-        toast.success("Resume deleted successfully!")
-
-        // Remove from actual state after animation completes
-        setTimeout(() => {
-          if (!jobToDelete.session_id || jobToDelete.session_id === sessionId) {
-            // Job belongs to current session - remove from currentSessionJobs
-            setCurrentSessionJobs((prev) =>
-              prev.filter((job) => job.generation_id !== jobData.generation_id)
-            )
-          } else {
-            // Job belongs to a previous session - remove from previousSessions
-            setPreviousSessions((prev) =>
-              prev.map((session) => {
-                if (session.session_id === jobData.session_id) {
-                  return {
-                    ...session,
-                    recent_generations: session.recent_generations?.filter(
-                      (job) => job.generation_id !== jobData.generation_id
-                    ),
-                    generated_resumes: session.generated_resumes?.filter(
-                      (job) => job.generation_id !== jobData.generation_id
-                    )
-                  }
-                }
-                return session
-              })
-            )
-          }
-
-          // Clean up the deleting set
-          setDeletingJobIds((prev) => {
-            const newSet = new Set(prev)
-            newSet.delete(jobData.generation_id)
-            return newSet
-          })
-        }, 300) // Animation duration
-      } else {
-        // API failed - stop animation and show error
-        setDeletingJobIds((prev) => {
-          const newSet = new Set(prev)
-          newSet.delete(jobData.generation_id)
-          return newSet
-        })
-
-        // Restore to selection if it was selected
-        if (selectedJobIds.has(jobData.generation_id)) {
-          setSelectedJobIds((prev) => new Set(prev).add(jobData.generation_id))
-        }
-
-        toast.error(
-          "Failed to delete resume: " + (response.error || "Unknown error")
-        )
-      }
-    } catch (error) {
-      // Network/API error - stop animation and show error
-      console.error("Error deleting job:", error)
-
-      setDeletingJobIds((prev) => {
-        const newSet = new Set(prev)
-        newSet.delete(jobData.generation_id)
-        return newSet
-      })
-
-      // Restore to selection if it was selected
-      if (selectedJobIds.has(jobData.generation_id)) {
-        setSelectedJobIds((prev) => new Set(prev).add(jobData.generation_id))
-      }
-
-      toast.error("Failed to delete resume. Please try again.")
-    }
-  }
-
-  // Debug logging to track UI state
-  // console.log("🖥️ UI State Debug:", {
-  //   sessionId,
-  //   currentSessionJobsCount: currentSessionJobs.length,
-  //   previousSessionsCount: previousSessions.length,
-  //   filteredJobsCount: filteredJobs.length,
-  //   statsTotal: stats.totalResumes,
-  //   hasBaseResume: !!baseResumeContent || !!baseResumeS3Url,
-  //   deletingJobIdsCount: deletingJobIds.size
-  // })
-
-  // Function to get session job status badge
   const getSessionJobStatusBadge = (jobData: any) => {
     const hasResume = jobData.generated_resume?.has_resume_data === true
     const isGenerating =
@@ -5902,21 +5703,6 @@ useEffect(() => {
         Pending
       </span>
     )
-  }
-
-  const deleteSelectedJobs = async () => {
-    if (selectedJobIds.size === 0)
-      return console.warn("No jobs selected for deletion")
-
-    const selectedJobs = filteredJobs.filter((job) =>
-      selectedJobIds.has(job.generation_id)
-    )
-
-    if (selectedJobs.length === 0) {
-      return console.warn("No valid jobs selected for deletion")
-    }
-
-    await Promise.all(selectedJobs.map((job) => handleDeleteJob(job)))
   }
 
   const downloadBulkResumesAsZip = async () => {
@@ -6206,6 +5992,183 @@ useEffect(() => {
     }
   }
 
+  const handleDeleteJob = async (
+    jobData: any,
+    skipLoaderManagement = false,
+    skipToastNotifications = false
+  ): Promise<DeleteResult> => {
+    handleCloseDropdown()
+
+    // Store the job data for potential restoration if API fails
+    const jobToDelete = jobData
+
+    try {
+      // 👇 Show loader before API call (only if not managing loader externally)
+      if (!skipLoaderManagement) {
+        setDeletingLoader(true)
+      }
+
+      // STEP 2: Make DELETE API call and handle success/failure
+      let correctSessionId = jobData.session_id || sessionId
+
+      const response = await postRequest(API_ENDPOINTS.DeleteGeneration, {
+        SESSION_ID: correctSessionId,
+        generation_id: jobData.generation_id
+      })
+
+      if (response.success) {
+        // Only show individual success toast if not part of bulk operation
+        if (!skipToastNotifications) {
+          successToast("Resume deleted successfully!")
+        }
+
+        setTimeout(() => {
+          if (!jobToDelete.session_id || jobToDelete.session_id === sessionId) {
+            setCurrentSessionJobs((prev) =>
+              prev.filter((job) => job.generation_id !== jobData.generation_id)
+            )
+          } else {
+            setPreviousSessions((prev) =>
+              prev.map((session) => {
+                if (session.session_id === jobData.session_id) {
+                  return {
+                    ...session,
+                    recent_generations: session.recent_generations?.filter(
+                      (job) => job.generation_id !== jobData.generation_id
+                    ),
+                    generated_resumes: session.generated_resumes?.filter(
+                      (job) => job.generation_id !== jobData.generation_id
+                    )
+                  }
+                }
+                return session
+              })
+            )
+          }
+
+          // Clean up deleting state
+          setDeletingJobIds((prev) => {
+            const newSet = new Set(prev)
+            newSet.delete(jobData.generation_id)
+            return newSet
+          })
+        }, 300)
+
+        return { success: true }
+      } else {
+        setDeletingJobIds((prev) => {
+          const newSet = new Set(prev)
+          newSet.delete(jobData.generation_id)
+          return newSet
+        })
+
+        if (selectedJobIds.has(jobData.generation_id)) {
+          setSelectedJobIds((prev) => new Set(prev).add(jobData.generation_id))
+        }
+
+        // Only show individual error toast if not part of bulk operation
+        if (!skipToastNotifications) {
+          toast.error(
+            "Failed to delete resume: " + (response.error || "Unknown error")
+          )
+        }
+
+        return { success: false, error: response.error || "Unknown error" }
+      }
+    } catch (error) {
+      console.error("Error deleting job:", error)
+
+      setDeletingJobIds((prev) => {
+        const newSet = new Set(prev)
+        newSet.delete(jobData.generation_id)
+        return newSet
+      })
+
+      if (selectedJobIds.has(jobData.generation_id)) {
+        setSelectedJobIds((prev) => new Set(prev).add(jobData.generation_id))
+      }
+
+      // Only show individual error toast if not part of bulk operation
+      if (!skipToastNotifications) {
+        toast.error("Failed to delete resume. Please try again.")
+      }
+
+      return {
+        success: false,
+        error: (error as Error).message || "Network error"
+      }
+    } finally {
+      // 👇 Hide loader after API completes (only if managing loader internally)
+      if (!skipLoaderManagement) {
+        setDeletingLoader(false)
+      }
+    }
+  }
+
+  const deleteSelectedJobs = async () => {
+    if (selectedJobIds.size === 0)
+      return console.warn("No jobs selected for deletion")
+
+    const selectedJobs = filteredJobs.filter((job) =>
+      selectedJobIds.has(job.generation_id)
+    )
+
+    if (selectedJobs.length === 0) {
+      return console.warn("No valid jobs selected for deletion")
+    }
+
+    const totalJobs = selectedJobs.length
+
+    try {
+      // Show loader at the start
+      setDeletingLoader(true)
+
+      // Delete jobs sequentially to avoid race conditions
+      const results: DeleteResult[] = []
+      for (const job of selectedJobs) {
+        const result = await handleDeleteJob(job, true, true) // Skip both loader and toast management
+        results.push(result)
+      }
+
+      // Count successful and failed deletions
+      const successfulDeletions = results.filter((r) => r?.success).length
+      const failedDeletions = totalJobs - successfulDeletions
+
+      // Show appropriate bulk toast notifications
+      if (failedDeletions === 0) {
+        // All deletions successful
+        if (totalJobs === 1) {
+          successToast("Resume deleted successfully!")
+        } else {
+          successToast(`${totalJobs} resumes deleted successfully!`)
+        }
+      } else if (successfulDeletions === 0) {
+        // All deletions failed
+        if (totalJobs === 1) {
+          toast.error("Failed to delete resume. Please try again.")
+        } else {
+          toast.error(
+            `Failed to delete ${totalJobs} resumes. Please try again.`
+          )
+        }
+      } else {
+        // Mixed results
+        toast.error(
+          `${successfulDeletions} resumes deleted, ${failedDeletions} failed. Please try again for the failed ones.`
+        )
+      }
+
+      // Clear selection after all deletions complete
+      setSelectedJobIds(new Set())
+    } catch (error) {
+      console.error("Error in bulk delete:", error)
+      toast.error("Failed to delete selected resumes. Please try again.")
+    } finally {
+      // Hide loader after all deletions complete
+      setDeletingLoader(false)
+    }
+  }
+
   const getStatusBadge = (job: Job) => {
     switch (job.status) {
       case "pending":
@@ -6248,21 +6211,99 @@ useEffect(() => {
     }
   }
 
-  // RENDER DEBUG - Component rendering
-  // console.log("🎨 InitializeResumeGeneration rendering with:", {
-  //   asBg,
-  //   isNavigatedFromBulkGenerator,
-  //   setupComplete,
-  //   currentSessionJobsLength: currentSessionJobs.length,
-  //   filteredJobsLength: getFilteredJobs().length,
-  //   renderTime: new Date().toISOString()
-  // })
+  // Calculate pagination values
+  // const totalPages = Math.ceil(filteredJobs.length / itemsPerPage)
+  // const indexOfLastItem = currentPage * itemsPerPage
+  // const indexOfFirstItem = indexOfLastItem - itemsPerPage
+  // const currentJobs = filteredJobs.slice(indexOfFirstItem, indexOfLastItem)
+
+  // Pagination controls component
+  const PaginationControls = () => {
+    if (filteredJobs.length <= itemsPerPage) return null
+
+    return (
+      <div className="flex flex-col md:flex-row items-center justify-start px-4 py-3 bg-dropdownBackground border border-formBorders rounded-lg">
+        <div className="text-sm text-gray-400 mb-4 md:mb-0 w-full">
+          Showing {indexOfFirstItem + 1} to{" "}
+          {Math.min(indexOfLastItem, filteredJobs.length)} of{" "}
+          {filteredJobs.length} entries
+        </div>
+
+        <div className="flex items-center w-full space-x-2">
+          <select
+            value={itemsPerPage}
+            onChange={(e) => {
+              setItemsPerPage(Number(e.target.value))
+              setCurrentPage(1)
+            }}
+            className="h-8 bg-gray-700 border border-gray-600 rounded text-white text-xs px-2">
+            <option value={5}>5 per page</option>
+            <option value={10}>10 per page</option>
+            <option value={20}>20 per page</option>
+            <option value={50}>50 per page</option>
+          </select>
+
+          <div className="flex space-x-1">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="h-8 px-3 bg-gray-700 border border-gray-600 rounded text-white text-sm disabled:opacity-50 flex items-center">
+              <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+            </button>
+
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNum
+              if (totalPages <= 5) {
+                pageNum = i + 1
+              } else if (currentPage <= 3) {
+                pageNum = i + 1
+              } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + i
+              } else {
+                pageNum = currentPage - 2 + i
+              }
+
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`h-8 w-8 flex items-center justify-center border rounded text-sm ${
+                    currentPage === pageNum
+                      ? "bg-purple border-purple text-white"
+                      : "bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+                  }`}>
+                  {pageNum}
+                </button>
+              )
+            })}
+
+            {totalPages > 5 && currentPage < totalPages - 2 && (
+              <span className="h-8 w-8 flex items-center justify-center text-gray-400">
+                ...
+              </span>
+            )}
+
+            <button
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+              }
+              disabled={currentPage === totalPages}
+              className="h-8 px-3 bg-gray-700 border border-gray-600 rounded text-white text-sm disabled:opacity-50 flex items-center">
+              Next <ChevronRight className="w-4 h-4 ml-1" />
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <DashBoardLayout>
-      <div className="min-h-screen __custom-layout-wrapper text-white">
+      <div className="min-h-80 __custom-layout-wrapper text-white">
         {/* Header */}
-        <div className="flex flex-col  mb-8 p-4 lg:p-6" data-tour="ai-dash-heading">
+        <div
+          className="flex flex-col  mb-8 p-4 lg:p-6"
+          data-tour="ai-dash-heading">
           {/* DEBUG BUTTON - Remove after debugging */}
           <div className="bg-red-600 p-4 rounded-lg !hidden">
             <button
@@ -6298,7 +6339,9 @@ useEffect(() => {
           </p>
         </div>
         {/* Dashboard Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 px-8" data-tour="ai-dash-total">
+        <div
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 px-8"
+          data-tour="ai-dash-total">
           <div className="bg-dropdownBackground border border-formBorders rounded p-6 transition-colors">
             <div className="flex items-center justify-between">
               <div>
@@ -6386,7 +6429,7 @@ useEffect(() => {
 
               <div className="relative w-full md:flex-1">
                 <select
-                 data-tour="ai-dash-filter"
+                  data-tour="ai-dash-filter"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as any)}
                   className="h-10 ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm placeholder:text-gray-500 focus:bg-[rgba(69,69,69,1)] appearance-none block w-full bg-dropdownBackground text-primary rounded px-3 pr-10 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/20 text-sm border border-formBorders hover:border-blue-400 transition-colors !py-0">
@@ -6398,44 +6441,46 @@ useEffect(() => {
                 <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
               </div>
 
-          <div data-tour="ai-dash-generate">
+              <div data-tour="ai-dash-generate">
                 <Button
-              data-tour="ai-dash-generate"
-                onClick={
-                  isGenerating || selectedJobIds.size === 0 || asBg
-                    ? null
-                    : startResumeGeneration
-                }
-                title={
-                  isGenerating || selectedJobIds.size === 0 || asBg
-                    ? "Select to Generate"
-                    : "Generate Resumes"
-                }
-                className={
-                  "w-full md:flex-1 flex items-center justify-center gap-2 h-10 bg-purple to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium px-6 py-3 rounded transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed " +
-                  (isGenerating || selectedJobIds.size === 0 || asBg
-                    ? " cursor-not-allowed "
-                    : "")
-                }>
-                {isGenerating || asBg ? (
-                  <>
-                    <div className="w-4 h-4">
-                      <StaticCircularLoader size={16} />
-                    </div>
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-4 h-4" />
-                    Generate Selected{" "}
-                    {selectedJobIds.size > 0 ? `(${selectedJobIds.size})` : ""}
-                  </>
-                )}
-              </Button>
-          </div>
+                  data-tour="ai-dash-generate"
+                  onClick={
+                    isGenerating || selectedJobIds.size === 0 || asBg
+                      ? null
+                      : startResumeGeneration
+                  }
+                  title={
+                    isGenerating || selectedJobIds.size === 0 || asBg
+                      ? "Select to Generate"
+                      : "Generate Resumes"
+                  }
+                  className={
+                    "w-full md:flex-1 flex items-center justify-center gap-2 h-10 bg-purple to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium px-6 py-3 rounded transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed " +
+                    (isGenerating || selectedJobIds.size === 0 || asBg
+                      ? " cursor-not-allowed "
+                      : "")
+                  }>
+                  {isGenerating || asBg ? (
+                    <>
+                      <div className="w-4 h-4">
+                        <StaticCircularLoader size={16} />
+                      </div>
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4" />
+                      Generate Selected{" "}
+                      {selectedJobIds.size > 0
+                        ? `(${selectedJobIds.size})`
+                        : ""}
+                    </>
+                  )}
+                </Button>
               </div>
+            </div>
 
-              {/* <select
+            {/* <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
                 className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
@@ -6444,137 +6489,140 @@ useEffect(() => {
                 <option value="company">Sort by Company</option>
                 <option value="status">Sort by Status</option>
               </select> */}
-            </div>
-
-            {selectedJobIds.size === 0 && !isGenerating && (
-              <div className="!hidden text-center text-sm text-gray-400 mt-2">
-                Select jobs using the checkboxes to generate resumes
-              </div>
-            )}
-
-            {isGenerating && (
-              <div className="!hidden mt-6">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-gray-300">
-                    Overall Progress
-                  </span>
-                  <span className="text-sm text-gray-400">
-                    {Math.round(overallProgress)}%
-                  </span>
-                </div>
-                <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div
-                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${overallProgress}%` }}
-                  />
-                </div>
-              </div>
-            )}
           </div>
-        </div>
-        {/* Unified Jobs Table */}
-        <div className=" rounded-xl backdrop-blur-sm mx-2 lg:mx-3">
-          <div className="p-[16px] lg:p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl flex font-semibold text-white [&_.MuiCircularProgress-svg]:!text-white">
-                <span className="min-w-fit relative">
-                  <input
-                    type="checkbox"
-                    checked={isAllSelected}
-                    ref={(checkboxRef) => {
-                      if (checkboxRef)
-                        checkboxRef.indeterminate = isIndeterminate
-                    }}
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="inline-block lg:hidden w-4 h-4 text-purple bg-dropdownBackground border-formBorders rounded focus:ring-purple-500 focus:ring-2 absolute left-[0px] top-[5px]"
-                  />
-                  <span className="ml-6 lg:ml-0">
-                    {" "}
-                    {asBg ? "Processing Resumes" : "All Jobs"}
-                  </span>
-                </span>
 
-                <span
-                  className={` ${
-                    !asBg && isLoadingSessionData ? "!hidden" : ""
-                  }  `}>
-                  &nbsp;({filteredJobs.length})
+          {selectedJobIds.size === 0 && !isGenerating && (
+            <div className="!hidden text-center text-sm text-gray-400 mt-2">
+              Select jobs using the checkboxes to generate resumes
+            </div>
+          )}
+
+          {isGenerating && (
+            <div className="!hidden mt-6">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-gray-300">
+                  Overall Progress
                 </span>
-                {!asBg && isLoadingSessionData && (
-                  <span className="ml-3">
-                    <StaticCircularLoader size={18} />
+                <span className="text-sm text-gray-400">
+                  {Math.round(overallProgress)}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-2">
+                <div
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${overallProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      {deletingLoader && (
+        <div className="fixed min-h-screen inset-0 flex items-center justify-center bg-black/30 z-50">
+          <CircularIndeterminate />
+        </div>
+      )}
+      {/* Unified Jobs Table */}
+      {/* Unified Jobs Table */}
+      <div className=" rounded-xl backdrop-blur-sm mx-2 lg:mx-3">
+        <div className="p-[16px] lg:p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl flex font-semibold text-white [&_.MuiCircularProgress-svg]:!text-white">
+              <span className="min-w-fit relative">
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  ref={(checkboxRef) => {
+                    if (checkboxRef) checkboxRef.indeterminate = isIndeterminate
+                  }}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                  className="inline-block lg:hidden w-4 h-4 text-purple bg-dropdownBackground border-formBorders rounded focus:ring-purple-500 focus:ring-2 absolute left-[0px] top-[5px]"
+                />
+                <span className="ml-6 lg:ml-0">
+                  {" "}
+                  {asBg ? "Processing Resumes" : "All Jobs"}
+                </span>
+              </span>
+
+              <span
+                className={` ${
+                  !asBg && isLoadingSessionData ? "!hidden" : ""
+                }  `}>
+                &nbsp;({filteredJobs.length})
+              </span>
+              {!asBg && isLoadingSessionData && (
+                <span className="ml-3">
+                  <StaticCircularLoader size={18} />
+                </span>
+              )}
+              <div
+                className={
+                  "flex flex-col lg:flex-row gap-2" +
+                  (selectedJobIds.size > 0 ? " " : " !hidden ")
+                }>
+                {selectedJobIds.size > 0 && (
+                  <span className="text-white ml-2">
+                    • {selectedJobIds.size} selected
                   </span>
                 )}
-                <div
-                  className={
-                    "flex flex-col lg:flex-row gap-2" +
-                    (selectedJobIds.size > 0 ? " " : " !hidden ")
-                  }>
-                  {selectedJobIds.size > 0 && (
-                    <span className="text-white ml-2">
-                      • {selectedJobIds.size} selected
-                    </span>
-                  )}
-                  <div className="flex flex-row lg:flex-row gap-2 mt-0 lg:mt-[-10px] ml-[-134px] lg:ml-0">
-                    <select
-                      value={bulkActionFilter}
-                      onChange={(e) =>
-                        setBulkActionFilter(e.target.value as any)
-                      }
-                      className="h-10 ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm placeholder:text-gray-500 focus:bg-[rgba(69,69,69,1)] appearance-none block w-full md:flex-1 bg-dropdownBackground text-primary rounded py-3 px-3 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/20 text-sm border border-formBorders hover:border-blue-400 transition-colors min-w-[130px] font-light !pt-[9px]">
-                      <option value="regenerate">Regenerate</option>
-                      <option value="delete">Delete</option>
-                      <option value="download">Download</option>
-                      {/* <option value="generating">Generating</option> */}
-                    </select>
+                <div className="flex flex-row lg:flex-row gap-2 mt-0 lg:mt-[-10px] ml-[-134px] lg:ml-0">
+                  <select
+                    value={bulkActionFilter}
+                    onChange={(e) => setBulkActionFilter(e.target.value as any)}
+                    className="h-10 ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm placeholder:text-gray-500 focus:bg-[rgba(69,69,69,1)] appearance-none block w-full md:flex-1 bg-dropdownBackground text-primary rounded py-3 px-3 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/20 text-sm border border-formBorders hover:border-blue-400 transition-colors min-w-[130px] font-light !pt-[9px]">
+                    <option value="regenerate">Regenerate</option>
+                    <option value="delete">Delete</option>
+                    <option value="download">Download</option>
+                  </select>
 
-                    <Button
-                      onClick={
-                        isGenerating || selectedJobIds.size === 0 || asBg
-                          ? null
-                          : onApplyBulkAction
-                      }
-                      title={
-                        isGenerating || selectedJobIds.size === 0 || asBg
-                          ? "Select to Generate"
-                          : "Generate Resumes"
-                      }
-                      className={
-                        "w-full md:flex-1 flex items-center justify-center gap-2 h-10 bg-purple to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium px-6 py-3 rounded transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap" +
-                        (isGenerating || selectedJobIds.size === 0 || asBg
-                          ? " cursor-not-allowed "
-                          : "")
-                      }>
-                      {isGenerating || asBg ? (
-                        <>
-                          <div className="w-4 h-4">
-                            <StaticCircularLoader size={16} />
-                          </div>
-                          {bulkActionFilter === "regenerate"
-                            ? "Regenerating..."
-                            : bulkActionFilter === "delete"
-                            ? "Deleting..."
-                            : "Downloading..."}
-                        </>
-                      ) : (
-                        <>Apply</>
-                      )}
-                    </Button>
-                  </div>
+                  <Button
+                    onClick={
+                      isGenerating || selectedJobIds.size === 0 || asBg
+                        ? null
+                        : onApplyBulkAction
+                    }
+                    title={
+                      isGenerating || selectedJobIds.size === 0 || asBg
+                        ? "Select to Generate"
+                        : "Generate Resumes"
+                    }
+                    className={
+                      "w-full md:flex-1 flex items-center justify-center gap-2 h-10 bg-purple to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium px-6 py-3 rounded transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap" +
+                      (isGenerating || selectedJobIds.size === 0 || asBg
+                        ? " cursor-not-allowed "
+                        : "")
+                    }>
+                    {isGenerating || asBg ? (
+                      <>
+                        <div className="w-4 h-4">
+                          <StaticCircularLoader size={16} />
+                        </div>
+                        {bulkActionFilter === "regenerate"
+                          ? "Regenerating..."
+                          : bulkActionFilter === "delete"
+                          ? "Deleting..."
+                          : "Downloading..."}
+                      </>
+                    ) : (
+                      <>Apply</>
+                    )}
+                  </Button>
                 </div>
-              </h2>
-              <div className="!hidden text-sm text-gray-400">
-                {currentSessionJobs.length} current session •{" "}
-                {
-                  previousSessions.flatMap(
-                    (s) => s.recent_generations || s.generated_resumes || []
-                  ).length
-                }{" "}
-                previous sessions
               </div>
+            </h2>
+            <div className="!hidden text-sm text-gray-400">
+              {currentSessionJobs.length} current session •{" "}
+              {
+                previousSessions.flatMap(
+                  (s) => s.recent_generations || s.generated_resumes || []
+                ).length
+              }{" "}
+              previous sessions
             </div>
+          </div>
 
-            {filteredJobs.length > 0 ? (
+          {filteredJobs.length > 0 ? (
+            <>
               <div className="space-y-4 lg:space-y-0 mb-14">
                 {/* Desktop Header - Hidden on mobile/tablet */}
                 <div className="hidden lg:grid lg:grid-cols-7 gap-4 p-6 border border-gray-600 border-b-gray-600 text-white font-semibold text-sm  rounded-t-[10px]">
@@ -6615,7 +6663,7 @@ useEffect(() => {
                 </div>
 
                 {/* Job Rows */}
-                {filteredJobs.map((jobData, index) => (
+                {currentJobs.map((jobData, index) => (
                   <div
                     key={`${jobData.type}-${jobData.generation_id}`}
                     className={`
@@ -6631,7 +6679,7 @@ useEffect(() => {
                           : "lg:border-t-0"
                       }
                       ${
-                        index === filteredJobs.length - 1
+                        index === currentJobs.length - 1
                           ? "lg:rounded-b-[10px]"
                           : ""
                       }
@@ -7104,22 +7152,22 @@ useEffect(() => {
                       className={
                         "hidden lg:flex lg:gap-2 lg:justify-end lg:items-center min-h-[60px] mr-0 __custom-action-pane" +
                         `
-                        ${
-                          isJobProcessing(jobData.generation_id) ||
-                          processingJobIds.has(jobData.generation_id) ||
-                          (isGenerating &&
-                            jobData.generation_metadata?.generation_status !==
-                              "completed" &&
-                            jobData.generation_metadata?.generation_status !==
-                              "failed") ||
-                          (asBg &&
-                            apiCalls.generateResumes.status === "pending" &&
-                            !jobData.generated_resume?.has_resume_data)
-                            ? ""
-                            : "lg:mr-[-28px]"
-                        }
-                      
-                      `
+                          ${
+                            isJobProcessing(jobData.generation_id) ||
+                            processingJobIds.has(jobData.generation_id) ||
+                            (isGenerating &&
+                              jobData.generation_metadata?.generation_status !==
+                                "completed" &&
+                              jobData.generation_metadata?.generation_status !==
+                                "failed") ||
+                            (asBg &&
+                              apiCalls.generateResumes.status === "pending" &&
+                              !jobData.generated_resume?.has_resume_data)
+                              ? ""
+                              : "lg:mr-[-28px]"
+                          }
+                        
+                        `
                       }>
                       {isJobProcessing(jobData.generation_id) ? (
                         <div className="flex items-center gap-2 px-4 py-2">
@@ -7238,34 +7286,35 @@ useEffect(() => {
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="!hidden text-center py-16 rounded-xl border-2 border-dashed border-gray-600 bg-gray-800/20">
-                <div className="max-w-md mx-auto">
-                  <div className="w-20 h-20 mx-auto mb-6 bg-gray-700 rounded-full flex items-center justify-center">
-                    <FileText className="w-10 h-10 text-gray-400" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-white mb-3">
-                    No Jobs Found
-                  </h3>
-                  <p className="text-gray-400 mb-6 text-lg">
-                    {searchTerm || statusFilter !== "all"
-                      ? "No jobs match your current filters. Try adjusting your search or filters."
-                      : "No jobs available for resume generation."}
-                  </p>
-                  {!searchTerm && statusFilter === "all" && (
-                    <Link
-                      to="/ai-bulk-resume-generator"
-                      className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium rounded-lg transition-all duration-200">
-                      Go back to add some jobs first
-                    </Link>
-                  )}
+              {/* Pagination Controls */}
+              <PaginationControls />
+            </>
+          ) : (
+            <div className="!hidden text-center py-16 rounded-xl border-2 border-dashed border-gray-600 bg-gray-800/20">
+              <div className="max-w-md mx-auto">
+                <div className="w-20 h-20 mx-auto mb-6 bg-gray-700 rounded-full flex items-center justify-center">
+                  <FileText className="w-10 h-10 text-gray-400" />
                 </div>
+                <h3 className="text-xl font-semibold text-white mb-3">
+                  No Jobs Found
+                </h3>
+                <p className="text-gray-400 mb-6 text-lg">
+                  {searchTerm || statusFilter !== "all"
+                    ? "No jobs match your current filters. Try adjusting your search or filters."
+                    : "No jobs available for resume generation."}
+                </p>
+                {!searchTerm && statusFilter === "all" && (
+                  <Link
+                    to="/ai-bulk-resume-generator"
+                    className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium rounded-lg transition-all duration-200">
+                    Go back to add some jobs first
+                  </Link>
+                )}
               </div>
-            )}
-          </div>
-        </div>{" "}
-      
-
+            </div>
+          )}
+        </div>
+      </div>
       {/* Modern Preview Modal for session data */}
       <Dialog open={previewModalOpen} onOpenChange={closePreviewModal}>
         <DialogContent
@@ -7847,7 +7896,6 @@ useEffect(() => {
           </div>
         </DialogContent>
       </Dialog>
-
       {/* Legacy Preview Modal - fallback for old data structure */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-[95vw] md:max-w-6xl lg:max-w-7xl max-h-[95vh] overflow-hidden bg-modalPurple border border-customGray">
@@ -8176,7 +8224,6 @@ useEffect(() => {
           </div>
         </DialogContent>
       </Dialog>
-
       {/* Credit Confirmation Modal - Only show in non-background mode */}
       {!asBg && (
         <CreditConfirmationModal
@@ -8193,7 +8240,6 @@ useEffect(() => {
           }
         />
       )}
-
       {showUpgradeModal && (
         <UpgradePlanModal
           isOpen={showUpgradeModal}

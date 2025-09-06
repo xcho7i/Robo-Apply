@@ -6,7 +6,7 @@ router.post('/add', aiInterviewCopilotController.addYourResume);
 
 // Get contexts for a user
 router.post('/get', aiInterviewCopilotController.getYourResume);
-
+router.post('/get-specific-resume', aiInterviewCopilotController.getSpecificResume);
 // Remove a resume
 router.post('/remove', aiInterviewCopilotController.removeYourResume);
 

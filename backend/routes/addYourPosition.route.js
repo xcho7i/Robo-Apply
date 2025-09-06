@@ -3,6 +3,7 @@ const router = express.Router();
 const aiInterviewCopilotController = require("../controllers/aiInterviewCopilot.controller");
 
 router.post('/add', aiInterviewCopilotController.addYourPosition);
+router.put('/add', aiInterviewCopilotController.updateYourPosition);
 
 // Get contexts for a user
 router.post('/get', aiInterviewCopilotController.getYourPosition);

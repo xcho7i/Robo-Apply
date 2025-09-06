@@ -1,5 +1,7 @@
+// Updated DashboardSidebar component with fixed tour navigation
+
 import { AiOutlineSetting } from "react-icons/ai"
-import React, { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Link, useLocation } from "react-router-dom"
 import dashboardIcon from "../assets/dashboardIcons/dashboardIcon.svg"
 import profileIcon from "../assets/dashboardIcons/profileIcon.svg"
@@ -13,25 +15,40 @@ import AddYourResume from "../assets/dashboardIcons/AddYourResume.svg"
 import AIInterviewCopilot from "../assets/dashboardIcons/AIInterviewCopilot.svg"
 import aiscore from "../assets/dashboardIcons/aiscore.svg"
 import sidebarContactUs from "../assets/logo.svg"
-import { VscLayoutSidebarRight } from "react-icons/vsc"
-import { VscLayoutSidebarLeft } from "react-icons/vsc"
-import { RiContactsBookFill, RiLogoutBoxRLine } from "react-icons/ri"
-import { FaEnvelope } from "react-icons/fa6"
-import { MdWifiCalling3 } from "react-icons/md"
+import { VscLayoutSidebarRight, VscLayoutSidebarLeft } from "react-icons/vsc"
+import { RiLogoutBoxRLine } from "react-icons/ri"
 import { ChevronDown, ChevronRight } from "lucide-react"
 import { Button } from "antd"
 import { useSubscriptionStore } from "../stores/subscription"
-import { useTour,settings } from "../stores/tours" // Import the tour store
- 
+import {
+  useTour,
+  resumeManagerSteps,
+  autoApplySteps,
+  aiDashboardPageSteps,
+  aiSingleSteps,
+  aiBulkSteps,
+  aiResumeBuilder,
+  aiCoverLetter,
+  aiResumeScore,
+  aiInterviewGuid,
+  aiAnalytics,
+  settings
+} from "../stores/tours"
 import CommingSoonModal from "../components/Modals/CommingSoonModal/index"
 
 const DashboardSidebar = () => {
   const location = useLocation()
   const dropdownTriggerRef = useRef<HTMLDivElement>(null)
- 
-  // Tour integration - but we won't auto-expand dropdown
-  const { started, currentIndex, steps } = useTour()
- 
+
+  // ✅ destructure tour store with switchToModuleTour
+  const {
+    started,
+    activeFlow,
+    switchToModuleTour,
+    setNavigator,
+    startModuleTourIfEligible
+  } = useTour()
+
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(
     () =>
       JSON.parse(localStorage.getItem("isSidebarCollapsed") || "false") || false
@@ -47,14 +64,6 @@ const DashboardSidebar = () => {
   const [isHoverDropdownOpen, setIsHoverDropdownOpen] = useState(false)
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 88 })
 
-//     const { startModuleTourIfEligible } = useTour()
-// useEffect(() => {
-//   startModuleTourIfEligible("settings", settings, { showWelcome: false })
-// }, [startModuleTourIfEligible])
- 
-  // Remove the auto-expand effect - let user manually control dropdown
-  // The tour will skip dropdown items if they're not visible
- 
   useEffect(() => {
     if (isHoverDropdownOpen && dropdownTriggerRef.current) {
       const rect = dropdownTriggerRef.current.getBoundingClientRect()
@@ -64,31 +73,40 @@ const DashboardSidebar = () => {
       })
     }
   }, [isHoverDropdownOpen])
- 
+
   const currentPlan =
     useSubscriptionStore(
       (state) => state?.subscription?.subscription?.planName
     ) || "Free"
- 
+
   useEffect(() => {
     localStorage.setItem(
       "isSidebarCollapsed",
       JSON.stringify(isSidebarCollapsed)
     )
   }, [isSidebarCollapsed])
- 
+
   useEffect(() => {
     const aiResumeRoutes = [
       "/ai-bulk-resume-generator",
-      "/ai-single-resume-generator", 
+      "/ai-single-resume-generator",
       "/initialize-resume-generation"
     ]
-    // Keep this logic for route-based dropdown opening (not tour-based)
     if (aiResumeRoutes.some((route) => location.pathname.startsWith(route))) {
       setIsAIDropdownOpen(true)
     }
   }, [location.pathname])
- 
+
+  // ✅ Set up navigation function once
+  useEffect(() => {
+    setNavigator((path: string) => {
+      if (window.location.pathname !== path) {
+        window.history.pushState({}, "", path)
+        window.dispatchEvent(new PopStateEvent("popstate"))
+      }
+    })
+  }, [setNavigator])
+
   const isActive = (paths) =>
     paths.some((path) => {
       const normalizedPath = `/${path.replace(/^\/+/, "")}`
@@ -97,10 +115,9 @@ const DashboardSidebar = () => {
         location.pathname.startsWith(`${normalizedPath}/`)
       )
     })
- 
 
   const handleCopilotClick = () => {
-    setIsCopilotVisible((prev) => !prev) // toggle visibility
+    setIsCopilotVisible((prev) => !prev)
   }
 
   const isCopilotRouteActive = isActive([
@@ -115,12 +132,12 @@ const DashboardSidebar = () => {
     inactive:
       "text-primary px-3 py-3 w-48 rounded-lg hover:bg-gray-700 hover:text-purple-300 font-normal"
   }
- 
+
   // Normal dropdown toggle behavior - no tour interference
   const handleDropdownToggle = () => {
     setIsAIDropdownOpen(!isAIDropdownOpen)
   }
- 
+
   const plans = ["Free", "Basic", "Standard", "Premium", "Enterprise"]
   const currentPlanLower = currentPlan.split(/Plan/i)[0]?.toLowerCase()?.trim()
   const currentIndexs = plans.findIndex((plan) =>
@@ -131,17 +148,28 @@ const DashboardSidebar = () => {
     nextPlan = "Enterprise"
   } else if (currentIndexs === -1) {
     nextPlan = "Basic"
-  } else if (currentIndex === plans.length - 1) {
+  } else if (currentIndexs === plans.length - 1) {
     nextPlan = "Enterprise"
   }
- 
+
+  // ✅ Enhanced tour click handler
+  const handleTourClick = (e, moduleKey, steps, path) => {
+    // If any tour is running (group or module), switch to the clicked module
+    if (started) {
+      e.preventDefault()
+      switchToModuleTour(moduleKey, steps, path)
+    } else {
+      // If no tour is running, start the module tour
+      startModuleTourIfEligible(moduleKey, steps)
+    }
+  }
+
   return (
     <aside
       data-tour="sidebar"
       className={`h-full flex flex-col pb-14 ${
         isSidebarCollapsed ? "w-20" : "w-64"
-      } p-4 space-y-10 bg-almostBlack border-t-dashboardborderColor border-r-dashboardborderColor border border-l-0 border-b-0 transition-width duration-300`}
-    >
+      } p-4 space-y-10 bg-almostBlack border-t-dashboardborderColor border-r-dashboardborderColor border border-l-0 border-b-0 transition-width duration-300`}>
       <nav className="flex flex-col space-y-2 ">
         <button
           className="text-primary focus:outline-none flex justify-end mr-3.5"
@@ -152,7 +180,7 @@ const DashboardSidebar = () => {
             <VscLayoutSidebarRight className="w-6 h-6" />
           )}
         </button>
- 
+
         {/* ⬇️ TOUR HOOK: AutoApply link gets data-tour so the spotlight can attach */}
 
         {showComingSoon && (
@@ -162,9 +190,13 @@ const DashboardSidebar = () => {
           />
         )}
 
+        {/* ✅ AutoApply */}
         <Link
           to="/auto-apply"
           data-tour="nav-autoapply"
+          onClick={(e) =>
+            handleTourClick(e, "auto-apply", autoApplySteps, "/auto-apply")
+          }
           className={`flex items-center w-10 ${
             isActive(["/auto-apply"])
               ? isSidebarCollapsed
@@ -182,10 +214,18 @@ const DashboardSidebar = () => {
           />
           {!isSidebarCollapsed && <span className="ml-2">AutoApply</span>}
         </Link>
- 
+
         <Link
           to="/resume-manager"
           data-tour="nav-resume-manager"
+          onClick={(e) =>
+            handleTourClick(
+              e,
+              "resume-manager",
+              resumeManagerSteps,
+              "/resume-manager"
+            )
+          }
           className={`flex items-center w-10 ${
             isActive(["/resume-manager"])
               ? isSidebarCollapsed
@@ -203,7 +243,7 @@ const DashboardSidebar = () => {
           />
           {!isSidebarCollapsed && <span className="ml-2">Resume Manager</span>}
         </Link>
- 
+
         {/* AI Tailored Apply - Dropdown */}
         <div className="relative">
           {isSidebarCollapsed ? (
@@ -229,7 +269,7 @@ const DashboardSidebar = () => {
                   loading="lazy"
                 />
               </div>
- 
+
               {isHoverDropdownOpen && (
                 <div
                   className="fixed bg-gray-800 rounded-lg shadow-lg py-2 min-w-[220px]"
@@ -246,6 +286,14 @@ const DashboardSidebar = () => {
                   <Link
                     data-tour="nav-aitailored-dashboard"
                     to="/initialize-resume-generation"
+                    onClick={(e) =>
+                      handleTourClick(
+                        e,
+                        "initialize-resume-generation",
+                        aiDashboardPageSteps,
+                        "/initialize-resume-generation"
+                      )
+                    }
                     className={`block px-3 py-2 text-sm transition-colors ${
                       isActive(["/initialize-resume-generation"])
                         ? "bg-gray-700 text-white"
@@ -256,6 +304,14 @@ const DashboardSidebar = () => {
                   <Link
                     data-tour="nav-aitailored-single"
                     to="/ai-single-resume-generator"
+                    onClick={(e) =>
+                      handleTourClick(
+                        e,
+                        "ai-single-resume-generator",
+                        aiSingleSteps,
+                        "/ai-single-resume-generator"
+                      )
+                    }
                     className={`block px-3 py-2 text-sm transition-colors ${
                       isActive(["/ai-single-resume-generator"])
                         ? "bg-gray-700 text-white"
@@ -266,6 +322,14 @@ const DashboardSidebar = () => {
                   <Link
                     data-tour="nav-aitailored-bulk"
                     to="/ai-bulk-resume-generator"
+                    onClick={(e) =>
+                      handleTourClick(
+                        e,
+                        "ai-bulk-resume-generator",
+                        aiBulkSteps,
+                        "/ai-bulk-resume-generator"
+                      )
+                    }
                     className={`block px-3 py-2 text-sm transition-colors ${
                       isActive(["/ai-bulk-resume-generator"])
                         ? "bg-gray-700 text-white"
@@ -305,12 +369,20 @@ const DashboardSidebar = () => {
                   )}
                 </span>
               </button>
- 
+
               {isAIDropdownOpen && (
                 <div className="ml-6 mt-2 space-y-1">
                   <Link
                     data-tour="nav-aitailored-dashboard"
-                    onClick={() => setIsAIDropdownOpen(false)}
+                    onClick={(e) => {
+                      setIsAIDropdownOpen(false)
+                      handleTourClick(
+                        e,
+                        "initialize-resume-generation",
+                        aiDashboardPageSteps,
+                        "/initialize-resume-generation"
+                      )
+                    }}
                     to="/initialize-resume-generation"
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                       isActive(["/initialize-resume-generation"])
@@ -321,7 +393,15 @@ const DashboardSidebar = () => {
                   </Link>
                   <Link
                     data-tour="nav-aitailored-single"
-                    onClick={() => setIsAIDropdownOpen(false)}
+                    onClick={(e) => {
+                      setIsAIDropdownOpen(false)
+                      handleTourClick(
+                        e,
+                        "ai-single-resume-generator",
+                        aiSingleSteps,
+                        "/ai-single-resume-generator"
+                      )
+                    }}
                     to="/ai-single-resume-generator"
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                       isActive(["/ai-single-resume-generator"])
@@ -333,7 +413,15 @@ const DashboardSidebar = () => {
                   <Link
                     data-tour="nav-aitailored-bulk"
                     to="/ai-bulk-resume-generator"
-                    onClick={() => setIsAIDropdownOpen(false)}
+                    onClick={(e) => {
+                      setIsAIDropdownOpen(false)
+                      handleTourClick(
+                        e,
+                        "ai-bulk-resume-generator",
+                        aiBulkSteps,
+                        "/ai-bulk-resume-generator"
+                      )
+                    }}
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                       isActive(["/ai-bulk-resume-generator"])
                         ? "bg-gradient-to-r from-[#AF63FB] to-[#8C20F8] text-white"
@@ -346,10 +434,18 @@ const DashboardSidebar = () => {
             </>
           )}
         </div>
- 
+
         <Link
-          data-tour="ai-res-builder-resumeNav"
           to="/scan-resume/main-ResumeBuilder"
+          data-tour="ai-res-builder-resumeNav"
+          onClick={(e) =>
+            handleTourClick(
+              e,
+              "ai-resume-builder",
+              aiResumeBuilder,
+              "/scan-resume/main-ResumeBuilder"
+            )
+          }
           className={`flex items-center w-10 ${
             isActive(["/scan-resume"])
               ? isSidebarCollapsed
@@ -362,17 +458,25 @@ const DashboardSidebar = () => {
           <img
             src={resumeScoreIcon}
             className="w-5 h-5"
-            alt="Resume Score"
+            alt="Resume Builder"
             loading="lazy"
           />
           {!isSidebarCollapsed && (
             <span className="ml-2">AI Resume Builder</span>
           )}
         </Link>
- 
+
         <Link
-          data-tour="ai-coverletter-cvrLtrHeading"
           to="/main-coverletter"
+          data-tour="ai-coverletter-cvrLtrHeading"
+          onClick={(e) =>
+            handleTourClick(
+              e,
+              "main-coverletter",
+              aiCoverLetter,
+              "/main-coverletter"
+            )
+          }
           className={`flex items-center w-10 ${
             isActive([
               "/main-coverletter",
@@ -390,15 +494,19 @@ const DashboardSidebar = () => {
           <img
             src={coverletterIcon}
             className="w-5 h-5"
-            alt="AI Cover Letter"
+            alt="Cover Letter"
             loading="lazy"
           />
           {!isSidebarCollapsed && <span className="ml-2">AI Cover Letter</span>}
         </Link>
- 
+
+        {/* ✅ Resume Score */}
         <Link
+          to="/scan-Main"
           data-tour="ai-scan-heading"
-          to="/scan"
+          onClick={(e) =>
+            handleTourClick(e, "ai-resume-score", aiResumeScore, "/scan")
+          }
           className={`flex items-center w-10 ${
             isActive(["/scan", "/scan-Main"])
               ? isSidebarCollapsed
@@ -411,15 +519,23 @@ const DashboardSidebar = () => {
           <img
             src={aiscore}
             className="w-5 h-5"
-            alt="AI Resume Score"
+            alt="Resume Score"
             loading="lazy"
           />
           {!isSidebarCollapsed && <span className="ml-2">AI Resume Score</span>}
         </Link>
- 
+
         <Link
-          data-tour="ai-interviewGuid-interviewHeading"
           to="/main-interview-Guide"
+          data-tour="ai-interviewGuid-interviewHeading"
+          onClick={(e) =>
+            handleTourClick(
+              e,
+              "ai-interview-guide",
+              aiInterviewGuid,
+              "/main-interview-Guide"
+            )
+          }
           className={`flex items-center w-10 ${
             isActive(["/interview-Guide", "/main-interview-Guide"])
               ? isSidebarCollapsed
@@ -439,7 +555,6 @@ const DashboardSidebar = () => {
             <span className="ml-2">AI Interview Guide</span>
           )}
         </Link>
- 
 
         {/* <button
          data-tour="ai-copilot-nav"
@@ -470,10 +585,12 @@ const DashboardSidebar = () => {
             alt="AI Interview Copilot"
             loading="lazy"
           />
-          {!isSidebarCollapsed && <span className="ml-2">AI Interview Copilot</span>}
+          {!isSidebarCollapsed && (
+            <span className="ml-2">AI Interview Copilot</span>
+          )}
         </Link>
 
-        {isCopilotVisible ? (
+        {isCopilotVisible && (
           <div className="border-l-2 border-[#676767] p-4">
             <Link
               to="/live-interview"
@@ -541,13 +658,15 @@ const DashboardSidebar = () => {
               )}
             </Link>
           </div>
-        ) : (
-          <></>
         )}
 
+        {/* ✅ Analytics */}
         <Link
-          data-tour="ai-analytics-sessionDetails"
           to="/analytics"
+          data-tour="ai-analytics-sessionDetails"
+          onClick={(e) =>
+            handleTourClick(e, "analytics", aiAnalytics, "/analytics")
+          }
           className={`flex items-center w-10 ${
             isActive(["/analytics"])
               ? isSidebarCollapsed
@@ -565,11 +684,14 @@ const DashboardSidebar = () => {
           />
           {!isSidebarCollapsed && <span className="ml-2">Analytics</span>}
         </Link>
- 
+
         {!isSidebarCollapsed && <span className="!mt-6">Other Menu</span>}
+
+        {/* ✅ Settings */}
         <Link
-          data-tour="ai-settings-UpgradePlan"
           to="/billing"
+          data-tour="ai-settings-UpgradePlan"
+          onClick={(e) => handleTourClick(e, "settings", settings, "/billing")}
           className={`flex items-center w-10 ${
             isActive(["/billing"])
               ? isSidebarCollapsed
@@ -582,7 +704,7 @@ const DashboardSidebar = () => {
           <AiOutlineSetting />
           {!isSidebarCollapsed && <span className="ml-2">Settings</span>}
         </Link>
- 
+
         <Link
           onClick={() => localStorage.removeItem("access_token")}
           to="/"
@@ -599,7 +721,7 @@ const DashboardSidebar = () => {
           {!isSidebarCollapsed && <span className="ml-2">Logout</span>}
         </Link>
       </nav>
- 
+
       {!isSidebarCollapsed && (
         <div
           className={`w-full py-3 px-6 bg-[url("/src/assets/upgrade-card.png")] bg-cover bg-no-repeat rounded-xl `}>
@@ -617,7 +739,10 @@ const DashboardSidebar = () => {
               Get access to all features on Unlock Full Potential with RoboApply
             </p>
             <Link type="button" to={"/billing"}>
-              <Button className="px-6 font-semibold" color="default" variant="solid">
+              <Button
+                className="px-6 font-semibold"
+                color="default"
+                variant="solid">
                 Get {nextPlan}
               </Button>
             </Link>
@@ -627,6 +752,5 @@ const DashboardSidebar = () => {
     </aside>
   )
 }
- 
+
 export default DashboardSidebar
- 

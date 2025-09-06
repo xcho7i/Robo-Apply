@@ -13,6 +13,12 @@ require("./trialEmailCron") // Initialize trial email cron job
 const { registerDeepgramSocket } = require("./sockets/deepgram.socket")
 const { registerClaudeSocket } = require("./sockets/claude.socket")
 
+// Import credit award cron job
+const cron = require('node-cron')
+const { spawn } = require('child_process')
+const path = require('path')
+
+
 const app = express()
 
 // allow origins
@@ -95,9 +101,53 @@ io.on('connection', (socket) => {
 const port = process.env.PORT || 3001
 const env = process.env.NODE_ENV
 
+
+// Start the credit award cron job
+const startCreditCron = () => {
+  console.log('🕐 Starting Credit Award Cron Job...')
+  console.log('📅 Schedule: Every 5 minutes')
+  
+  // Run the credit award script every 5 minutes
+  cron.schedule('*/2 * * * *', () => {
+    console.log('\n' + '='.repeat(60))
+    console.log('🚀 CRON JOB TRIGGERED - Credit Award Process')
+    console.log('⏰ Time:', new Date().toISOString())
+    console.log('='.repeat(60))
+    
+    // Get the absolute path to the script
+    const scriptPath = path.join(__dirname, 'awardCreditsToNewUser.js')
+    
+    // Spawn a new process to run the script
+    const child = spawn('node', [scriptPath], {
+      stdio: 'inherit',
+      cwd: __dirname
+    })
+    
+    child.on('close', (code) => {
+      console.log(`\n📊 Credit award script finished with exit code: ${code}`)
+      console.log('⏰ Finished at:', new Date().toISOString())
+      console.log('⏳ Next run in 5 minutes...\n')
+    })
+    
+    child.on('error', (error) => {
+      console.error('❌ Error running credit award script:', error)
+    })
+    
+  }, {
+    scheduled: true,
+    timezone: "UTC"
+  })
+  
+  console.log('✅ Credit award cron job is now running alongside the backend.')
+}
+
+
 const startServer = async () => {
   try {
     await connectDB()
+          // Start the credit award cron job
+          // startCreditCron()
+
     console.log(`Running in ${env} mode`)
     server.listen(port, (err) => {
       if (err) console.error("Error starting server:", err)

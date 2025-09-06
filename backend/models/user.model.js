@@ -105,6 +105,10 @@ lastPaymentFailed: {
   type: Boolean,
   default: false,
 },
+lastFailedInvoiceId: {
+  type: String,
+  default: null,
+},
 trialActivated: {
   type: Boolean,
   default: false
@@ -130,8 +134,11 @@ trialEmailCampaign: {
     enum: ['active', 'cancelled', 'completed', 'upgraded'],
     default: 'active'
   }
+},
+extraCreditsAwarded: {
+  type: Boolean,
+  default: false
 }
-    
   },
   { timestamps: true }
 );

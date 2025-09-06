@@ -32,7 +32,11 @@ const AddYourResume: React.FC = () => {
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [isSettingVisible, setIsSettingVisible] = useState<boolean>(false);
-  const { uploadedFiles, addUploadedFiles } = useYourResume();
+  const [isViewModalVisible, setIsViewModalVisible] = useState<boolean>(false);
+  const [selectedFile, setSelectedFile] = useState<any>(null);
+  const [fileContent, setFileContent] = useState<string>("");
+  const [isLoadingContent, setIsLoadingContent] = useState<boolean>(false);
+  const { uploadedFiles, addUploadedFiles, removeUploadedFiles } = useYourResume();
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -80,8 +84,8 @@ const AddYourResume: React.FC = () => {
           err instanceof Error
             ? err.message
             : typeof err === "object" && err !== null && "message" in err
-            ? String((err as any).message)
-            : "Failed to load resumes";
+              ? String((err as any).message)
+              : "Failed to load resumes";
         // errorToast(message);
         console.log(message)
       } finally {
@@ -218,8 +222,8 @@ const AddYourResume: React.FC = () => {
         err instanceof Error
           ? err.message
           : typeof err === "object" && err !== null && "message" in err
-          ? String((err as any).message)
-          : "Upload failed";
+            ? String((err as any).message)
+            : "Upload failed";
 
       console.log(message)
       // errorToast(message);
@@ -230,21 +234,69 @@ const AddYourResume: React.FC = () => {
 
 
   const handleRemoveResume = async (id: string) => {
-    console.log("id => ", id);
-    const res = await fetch(`${BASE_URL}${API_ENDPOINTS.RemoveResume}`, {
-      method: "POST",
-      body: JSON.stringify({ userId: userId, _id: id }),
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`Remove failed: ${errorText}`);
+    try {
+      console.log("id => ", id);
+      const res: any = await fetch(`${BASE_URL}${API_ENDPOINTS.RemoveResume}`, {
+        method: "POST",
+        body: JSON.stringify({ userId: userId, _id: id }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Remove failed: ${errorText}`);
+      }
+      const result = await res.json();
+      console.log("result => ", result);
+      successToast(result.msg);
+
+      // Use the new removeUploadedFiles function for proper state management
+      removeUploadedFiles(id);
+    } catch (error) {
+      console.log(error, "error==================");
     }
-    const result = await res.json();
-    console.log("result => ", result);
-    successToast("Resume removed successfully!");
+  };
+
+  const handleViewResume = async (file: any) => {
+    try {
+      setIsLoadingContent(true);
+      setSelectedFile(file);
+
+      // Try to fetch resume content from the backend
+      const res = await fetch(`${BASE_URL}${API_ENDPOINTS.GetSpecificResume}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId: userId, _id: file.id }),
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success && result.content) {
+          setFileContent(result.content);
+        } else {
+          setFileContent("Unable to load resume content. The file may be corrupted or in an unsupported format.");
+        }
+      } else {
+        setFileContent("Unable to load resume content. Please try again later.");
+      }
+
+      setIsViewModalVisible(true);
+    } catch (error) {
+      console.error("Error fetching resume content:", error);
+      setFileContent("Error loading resume content. Please try again later.");
+      setIsViewModalVisible(true);
+    } finally {
+      setIsLoadingContent(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsViewModalVisible(false);
+    setSelectedFile(null);
+    setFileContent("");
   };
 
   return (
@@ -252,6 +304,51 @@ const AddYourResume: React.FC = () => {
       {loadingLoader && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
           <CircularIndeterminate />
+        </div>
+      )}
+
+      {/* Resume View Modal */}
+      {isViewModalVisible && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
+          <div className="bg-[#2c2c2c] rounded-lg w-full max-w-4xl h-[80vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center p-4 border-b border-[#454545]">
+              <h3 className="text-white text-xl font-semibold">
+                {selectedFile?.name || "Resume Preview"}
+              </h3>
+              <Button
+                onClick={handleCloseModal}
+                className="p-2 text-white hover:bg-[#454545] rounded-lg"
+              >
+                ✕
+              </Button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 p-4 overflow-auto">
+              {isLoadingContent ? (
+                <div className="flex justify-center items-center h-full">
+                  <CircularIndeterminate />
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg p-6 h-full overflow-auto">
+                  <pre className="whitespace-pre-wrap text-sm text-gray-800 font-mono">
+                    {fileContent || "No content available"}
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end p-4 border-t border-[#454545]">
+              <Button
+                onClick={handleCloseModal}
+                className="px-6 py-2 bg-gradient-to-b from-gradientStart to-gradientEnd text-white rounded-lg font-semibold hover:ring-2 hover:ring-gradientEnd"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
         </div>
       )}
       <DashBoardLayout>
@@ -300,9 +397,8 @@ const AddYourResume: React.FC = () => {
                   {/* Upload area */}
                   <div className="flex items-center justify-between gap-4">
                     <div
-                      className={`flex w-fit gap-4 p-2 rounded-lg border ${
-                        isDragging ? "border-white" : "border-[#454545]"
-                      }`}
+                      className={`flex w-fit gap-4 p-2 rounded-lg border ${isDragging ? "border-white" : "border-[#454545]"
+                        }`}
                       onDrop={handleDrop}
                       onDragOver={handleDragOver}
                       onDragLeave={handleDragLeave}
@@ -342,8 +438,18 @@ const AddYourResume: React.FC = () => {
                     </Button>
                   </div>
 
+                  <div className="flex items-center justify-start">
+                    <Button
+                      onClick={() => handleRemoveResume('all')}
+                      className="p-3 px-5 flex items-center whitespace-nowrap space-x-2 max-w-full text-primary min-w-max text-navbar font-bold rounded-lg bg-gradient-to-b from-gradientStart to-gradientEnd hover:ring-2 hover:ring-gradientEnd focus:ring-2 focus:ring-gradientEnd"
+                    >
+                      <MdDelete /> <span>Delete All </span>
+                    </Button>
+                  </div>
+
                   {/* Table */}
-                  <div className="mt-5">
+
+                  <div className="">
                     <div className="grid grid-cols-3 text-white font-semibold text-base border-b-2 border-gray-400 rounded-tl-md rounded-tr-md">
                       <div className="py-3 px-4">File Name</div>
                       <div className="py-3 px-4">Upload Date</div>
@@ -364,10 +470,7 @@ const AddYourResume: React.FC = () => {
                             <div className="group relative">
                               <Button
                                 className="p-2 flex items-center text-navbar text-yellowColor font-medium rounded bg-gradient-to-b from-gradientStart to-gradientEnd hover:ring-2 hover:ring-gradientEnd focus:ring-2 focus:ring-gradientEnd"
-                                onClick={() => {
-                                  console.log("View functionality coming soon!");
-                                  // TODO: Implement file viewing functionality
-                                }}
+                                onClick={() => handleViewResume(file)}
                               >
                                 <MdOutlineRemoveRedEye size={20} />
                               </Button>
@@ -379,7 +482,7 @@ const AddYourResume: React.FC = () => {
                               <Button
                                 className="p-2 flex items-center text-navbar text-yellowColor font-medium rounded bg-gradient-to-b from-gradientStart to-gradientEnd hover:ring-2 hover:ring-gradientEnd focus:ring-2 focus:ring-gradientEnd"
                                 onClick={() => {
-                                  console.log(file,"file==================");
+                                  console.log(file, "file==================");
                                   // TODO: Implement proper delete functionality with API call
                                   handleRemoveResume(file.id);
                                 }}

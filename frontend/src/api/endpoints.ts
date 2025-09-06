@@ -94,6 +94,9 @@ const API_ENDPOINTS = {
 
   //Resume Score
   GetResumeScore: "/api/resScore/get-resume-scores",
+  GetSingleResumeScore: "/api/resScore/get-resume-score",
+  UpdateResumeScore: "/ai/improve-rms",
+
   DeleteResumeScore: "/api/resScore/delete-resume-score",
   PostResumeScore: "/api/resScore/add-resume-score",
   //feedback
@@ -108,6 +111,7 @@ const API_ENDPOINTS = {
   //AI Interview Resume Contexts
   UploadNewResume: "/api/aiInterviewCopilot/add-your-resume/add",
   GetResumes: "/api/aiInterviewCopilot/add-your-resume/get",
+  GetSpecificResume: "/api/aiInterviewCopilot/add-your-resume/get-specific-resume",
   RemoveResume: "/api/aiInterviewCopilot/add-your-resume/remove",
 
   //AI interview copilot interview add your position
@@ -123,7 +127,11 @@ const API_ENDPOINTS = {
   GetAllInterviewSessions:
     "/api/aiInterviewCopilot/interview-session/getAllSessions",
   UpdateInterviewSession:
-    "/api/aiInterviewCopilot/interview-session/updateSession"
+    "/api/aiInterviewCopilot/interview-session/updateSession",
+
+  //Customer portal session
+  CreateCustomerPortalSession:
+    "/api/subscription/create-customer-portal-session"
 }
 
 export default API_ENDPOINTS

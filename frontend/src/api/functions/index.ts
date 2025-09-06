@@ -110,7 +110,10 @@ async function addResume(data: Resume) {
     return { success: true, message: "Resume data saved successfully!" }
   } catch (error) {
     console.error("Error saving resume:", error)
-    return { success: false, message: "Failed to save resume!" }
+    return {
+      success: false,
+      message: "You have used all your resume profile slots."
+    }
   }
 }
 

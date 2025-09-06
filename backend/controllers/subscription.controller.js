@@ -1,4 +1,5 @@
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const { initializeStripe } = require("../utils/stripeHelper");
+const stripe = initializeStripe();
 const Plan = require("../models/plans.model");
 const User = require("../models/user.model");
 const Subscription = require("../models/subscription.model");
@@ -29,6 +30,130 @@ const PaymentHistory = require("../models/paymentHistory.model");
 
 
 const methods = {
+
+  updateInvoice: async (req, res) => {
+    try {
+      const { invoiceId, newAmount } = req.body;
+  
+      if (!invoiceId || !newAmount || newAmount <= 0) {
+        return res.status(400).json({ success: false, msg: "Invalid invoiceId or amount." });
+      }
+  
+      // 1. Fetch the invoice
+      const invoice = await stripe.invoices.retrieve(invoiceId);
+  
+      // === Case 1: Draft Invoice ===
+      if (invoice.status === "draft") {
+        const invoiceItems = await stripe.invoiceItems.list({ invoice: invoiceId });
+  
+        if (invoiceItems.data.length > 0) {
+          await stripe.invoiceItems.update(invoiceItems.data[0].id, { amount: newAmount });
+        } else {
+          await stripe.invoiceItems.create({
+            customer: invoice.customer,
+            invoice: invoiceId,
+            amount: newAmount,
+            currency: invoice.currency,
+            description: "Updated invoice charge",
+          });
+        }
+  
+        const updatedInvoice = await stripe.invoices.retrieve(invoiceId);
+        return res.status(200).json({
+          success: true,
+          msg: "Draft invoice updated successfully.",
+          invoice: updatedInvoice,
+        });
+      }
+  
+      // === Case 2: Finalized but unpaid invoice ===
+      if (invoice.status === "open") {
+        // Expire checkout session (if exists)
+        const sessions = await stripe.checkout.sessions.list({
+          payment_intent: invoice.payment_intent,
+          limit: 1,
+        });
+  
+        if (sessions.data.length > 0) {
+          await stripe.checkout.sessions.expire(sessions.data[0].id);
+        }
+  
+        // Void invoice
+        await stripe.invoices.voidInvoice(invoiceId);
+  
+        // Create a new corrected invoice
+        await stripe.invoiceItems.create({
+          customer: invoice.customer,
+          amount: newAmount,
+          currency: invoice.currency,
+          description: "Corrected invoice charge",
+        });
+  
+        const newInvoice = await stripe.invoices.create({
+          customer: invoice.customer,
+          collection_method: invoice.collection_method,
+        });
+  
+        return res.status(200).json({
+          success: true,
+          msg: "Old invoice voided (Checkout Session expired). New invoice created.",
+          invoice: newInvoice,
+        });
+      }
+  
+      // === Case 3: Finalized and paid invoice ===
+      if (invoice.status === "paid") {
+        const creditNote = await stripe.creditNotes.create({
+          invoice: invoiceId,
+          amount: invoice.total - newAmount, // difference to refund/credit
+          reason: "order_change",
+        });
+  
+        return res.status(200).json({
+          success: true,
+          msg: "Invoice already paid. Credit note issued for adjustment.",
+          creditNote,
+        });
+      }
+  
+      // === Case 4: Voided invoice ===
+      if (invoice.status === "void") {
+        // Create new invoice item with correct amount
+        await stripe.invoiceItems.create({
+          customer: invoice.customer,
+          amount: newAmount,
+          currency: invoice.currency,
+          description: "Corrected invoice charge (new after void)",
+        });
+  
+        // Create a brand new invoice
+        const newInvoice = await stripe.invoices.create({
+          customer: invoice.customer,
+          collection_method: invoice.collection_method || "charge_automatically",
+        });
+  
+        return res.status(200).json({
+          success: true,
+          msg: "Invoice was void. Created a new invoice with updated amount.",
+          invoice: newInvoice,
+        });
+      }
+  
+      // Other statuses
+      return res.status(400).json({
+        success: false,
+        msg: `Invoice in status '${invoice.status}' cannot be updated.`,
+      });
+  
+    } catch (error) {
+      console.error("Stripe Invoice Update Error:", error);
+      return res.status(500).json({ success: false, msg: "Invoice update failed", error: error.message });
+    }
+  },
+  
+  
+  
+
 
 
 createCreditCheckout: async (req, res) => {
@@ -1111,11 +1236,9 @@ handleWebhook: async (req, res) => {
         const { userId, planIdentifier, fromTrialUpgrade, fromTrialDowngrade, fromTrialToPaid, fromRegularUpgrade, fromRegularDowngrade, fromSamePlanRenewal, fromDiscountFlow, oldSubscriptionId, cancelledTrialSubscriptionId, cancelledAtPeriodEndSubscriptionId } = subscription.metadata || {};
         
         console.log(`🔍 customer.subscription.created - Subscription ID: ${subscription.id}`);
-        // console.log(`🔍 Full Metadata:`, JSON.stringify(subscription.metadata, null, 2));
         console.log(`🔍 fromTrialToPaid: ${fromTrialToPaid}, cancelledTrialSubscriptionId: ${cancelledTrialSubscriptionId}`);
         console.log(`🔍 fromRegularUpgrade: ${fromRegularUpgrade}, fromRegularDowngrade: ${fromRegularDowngrade}, fromSamePlanRenewal: ${fromSamePlanRenewal}`);
         console.log(`🔍 fromDiscountFlow: ${fromDiscountFlow}, oldSubscriptionId: ${oldSubscriptionId}`);
-        console.log(`🔍 rolloverCredits: ${subscription.metadata?.rolloverCredits}`);
         
         if (!userId) {
           console.log(`❌ No userId found in metadata, breaking`);
@@ -1131,6 +1254,13 @@ handleWebhook: async (req, res) => {
         // Handle trial activation
         const isTrialPeriod = subscription.metadata?.isTrialPeriod === 'true' || subscription.trial_period_days > 0;
         console.log(`🔍 Is trial period: ${isTrialPeriod}, trial_period_days: ${subscription.trial_period_days}`);
+        
+        // ONLY handle trial subscriptions here - skip paid subscriptions
+        if (!isTrialPeriod) {
+          console.log(`⏳ Paid subscription detected - skipping creation in customer.subscription.created`);
+          console.log(`⏳ Paid subscription will be created only after successful payment in invoice.payment_succeeded`);
+          break;
+        }
         
         if (isTrialPeriod) {
           console.log(`✅ Setting up trial for user ${user.email}`);
@@ -1172,10 +1302,6 @@ handleWebhook: async (req, res) => {
               console.error("Failed to send trial activation email:", error);
             }
           }, 100); // 100ms delay
-        } else {
-          // Just update subscribed status for non-trial subscriptions
-          user.subscribed = true;
-          await user.save();
         }
 
         // Check if this subscription already exists
@@ -1257,26 +1383,44 @@ handleWebhook: async (req, res) => {
           }
         }
 
-        // Also check for any other active subscriptions that might have remaining credits
-        const otherActiveSubscriptions = await UserSubscription.find({
+        // Also check for any other subscriptions that might have remaining credits
+        // This includes both active subscriptions and recently cancelled trial subscriptions
+        const otherSubscriptions = await UserSubscription.find({
           userId: user._id,
-          isActive: true,
-          _id: { $ne: oldSubscription?._id }
+          _id: { $ne: oldSubscription?._id },
+          $or: [
+            { isActive: true }, // Active subscriptions
+            { 
+              isTrialPeriod: true, 
+              isCancelled: true, 
+              isActive: false,
+              endDate: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Cancelled within last 24 hours
+            }
+          ]
         });
 
-        console.log(`🔍 Found ${otherActiveSubscriptions.length} other active subscriptions to check`);
+        console.log(`🔍 Found ${otherSubscriptions.length} other subscriptions to check for rollover credits`);
 
-        for (const sub of otherActiveSubscriptions) {
-          console.log(`🔍 Checking subscription ${sub.stripeSubscriptionId} for additional credits`);
-          if (sub.planSnapshot?.monthlyCredits && sub.usage?.monthlyCreditsUsed !== undefined) {
-            const remainingCredits = sub.planSnapshot.monthlyCredits - sub.usage.monthlyCreditsUsed;
-            console.log(`💰 Additional calculation: ${sub.planSnapshot.monthlyCredits} - ${sub.usage.monthlyCreditsUsed} = ${remainingCredits}`);
-            if (remainingCredits > 0) {
-              totalRolloverCredits += remainingCredits;
-              console.log(`💰 Additional credit rollover: ${remainingCredits} credits from subscription ${sub.stripeSubscriptionId}`);
-              console.log(`💰 Running total rollover credits: ${totalRolloverCredits}`);
+        // If we have other subscriptions, use those for rollover
+        if (otherSubscriptions.length > 0) {
+          console.log(`🔄 Found other subscriptions - using those for rollover instead of old subscription`);
+          totalRolloverCredits = 0; // Reset the rollover credits
+          
+          for (const sub of otherSubscriptions) {
+            console.log(`🔍 Checking subscription ${sub.stripeSubscriptionId} for rollover credits (isActive: ${sub.isActive}, isTrialPeriod: ${sub.isTrialPeriod}, isCancelled: ${sub.isCancelled})`);
+            if (sub.planSnapshot?.monthlyCredits && sub.usage?.monthlyCreditsUsed !== undefined) {
+              const remainingCredits = sub.planSnapshot.monthlyCredits - sub.usage.monthlyCreditsUsed;
+              console.log(`💰 Rollover calculation: ${sub.planSnapshot.monthlyCredits} - ${sub.usage.monthlyCreditsUsed} = ${remainingCredits}`);
+              if (remainingCredits > 0) {
+                totalRolloverCredits += remainingCredits;
+                console.log(`💰 Credit rollover: ${remainingCredits} credits from subscription ${sub.stripeSubscriptionId}`);
+                console.log(`💰 Running total rollover credits: ${totalRolloverCredits}`);
+              }
             }
           }
+        } else {
+          // Only use old subscription if no other subscriptions exist
+          console.log(`🔄 No other subscriptions found - using old subscription for rollover`);
         }
 
         // Add rollover credits to the new subscription's monthly credits
@@ -1292,7 +1436,21 @@ handleWebhook: async (req, res) => {
           console.log(`💰 No rollover credits to add to new subscription`);
         }
 
-        console.log(`📝 Creating new subscription with planSnapshot:`, JSON.stringify(planSnapshot, null, 2));
+        // Store rollover credit calculation data in metadata for later use in invoice.payment_succeeded
+        let rolloverData = {
+          oldSubscriptionId: subscription.metadata?.oldSubscriptionId,
+          cancelledTrialSubscriptionId,
+          cancelledAtPeriodEndSubscriptionId,
+          fromTrialUpgrade,
+          fromTrialDowngrade,
+          fromTrialToPaid,
+          fromRegularUpgrade,
+          fromRegularDowngrade,
+          fromSamePlanRenewal,
+          fromDiscountFlow
+        };
+
+        console.log(`📝 Creating new trial subscription with planSnapshot:`, JSON.stringify(planSnapshot, null, 2));
 
         const newSub = await UserSubscription.create({
           userId: user._id,
@@ -1312,61 +1470,63 @@ handleWebhook: async (req, res) => {
             generationsWithoutTailoring: 0,
           },
           startDate: new Date(subscription.current_period_start * 1000),
-          isTrialPeriod: false, // This is not a trial subscription
+          isTrialPeriod: isTrialPeriod, // ✅ Use the actual trial status
           endDate: new Date(subscription.current_period_end * 1000),
-          isActive: true,
+          isActive: isTrialPeriod, // ✅ Trial subscriptions are active immediately, paid subscriptions wait for payment
           isCancelled: false,
           cancelAt: null,
+          pendingPayment: !isTrialPeriod, // ✅ Only paid subscriptions are pending payment
+          rolloverData: rolloverData, // Store rollover data for later processing
         });
 
-        console.log(`✅ New subscription created in database: ${newSub._id}`);
+        console.log(`✅ New trial subscription created in database: ${newSub._id}`);
 
-        // Handle old subscription cancellation and deletion for all upgrade/downgrade scenarios
-        let subscriptionToCancel = null;
-        
-        // Check for old subscription ID in metadata
-        if (subscription.metadata?.oldSubscriptionId) {
-          subscriptionToCancel = subscription.metadata.oldSubscriptionId;
-          console.log(`🔍 Found oldSubscriptionId in metadata: ${subscriptionToCancel}`);
-        } else if (cancelledTrialSubscriptionId) {
-          subscriptionToCancel = cancelledTrialSubscriptionId;
-        } else if (cancelledAtPeriodEndSubscriptionId) {
-          subscriptionToCancel = cancelledAtPeriodEndSubscriptionId;
-        }
-
-        if (subscriptionToCancel) {
-          try {
-            console.log(`🚫 Attempting to cancel old subscription: ${subscriptionToCancel}`);
-            // Immediately cancel the old subscription in Stripe
-            await stripe.subscriptions.cancel(subscriptionToCancel);
-            console.log(`✅ Successfully cancelled old subscription in Stripe: ${subscriptionToCancel}`);
-
-            // Delete the old subscription data from our database
-            const deletedSub = await UserSubscription.findOneAndDelete({ stripeSubscriptionId: subscriptionToCancel });
-            if (deletedSub) {
-              console.log(`🗑️ Successfully deleted old subscription data for: ${subscriptionToCancel}`);
-            } else {
-              console.log(`⚠️ Old subscription data not found in database for: ${subscriptionToCancel}`);
-            }
-
-          } catch (error) {
-            console.error(`❌ Error cancelling/deleting old subscription ${subscriptionToCancel}:`, error.message);
-            // Continue with the process even if old subscription cleanup fails
+        // Handle old subscription cancellation and deletion for trial subscriptions
+          let subscriptionToCancel = null;
+          
+          // Check for old subscription ID in metadata
+          if (subscription.metadata?.oldSubscriptionId) {
+            subscriptionToCancel = subscription.metadata.oldSubscriptionId;
+            console.log(`🔍 Found oldSubscriptionId in metadata: ${subscriptionToCancel}`);
+          } else if (cancelledTrialSubscriptionId) {
+            subscriptionToCancel = cancelledTrialSubscriptionId;
+          } else if (cancelledAtPeriodEndSubscriptionId) {
+            subscriptionToCancel = cancelledAtPeriodEndSubscriptionId;
           }
-        } else {
-          console.log(`ℹ️ No old subscription to cancel`);
-        }
 
-        // Set all other user subscriptions to inactive (except for those scheduled for cancellation at period end)
-        const updateResult = await UserSubscription.updateMany(
-          { 
-            userId: user._id,
-            _id: { $ne: newSub._id },
-            isCancelled: { $ne: true } // Don't deactivate subscriptions that are already scheduled for cancellation
-          },
-          { isActive: false }
-        );
-        console.log(`🔄 Updated ${updateResult.modifiedCount} other subscriptions to inactive`);
+          if (subscriptionToCancel) {
+            try {
+              console.log(`🚫 Attempting to cancel old subscription: ${subscriptionToCancel}`);
+              // Immediately cancel the old subscription in Stripe
+              await stripe.subscriptions.cancel(subscriptionToCancel);
+              console.log(`✅ Successfully cancelled old subscription in Stripe: ${subscriptionToCancel}`);
+
+              // Delete the old subscription data from our database
+              const deletedSub = await UserSubscription.findOneAndDelete({ stripeSubscriptionId: subscriptionToCancel });
+              if (deletedSub) {
+                console.log(`🗑️ Successfully deleted old subscription data for: ${subscriptionToCancel}`);
+              } else {
+                console.log(`⚠️ Old subscription data not found in database for: ${subscriptionToCancel}`);
+              }
+
+            } catch (error) {
+              console.error(`❌ Error cancelling/deleting old subscription ${subscriptionToCancel}:`, error.message);
+              // Continue with the process even if old subscription cleanup fails
+            }
+          } else {
+            console.log(`ℹ️ No old subscription to cancel`);
+          }
+
+          // Set all other user subscriptions to inactive (except for those scheduled for cancellation at period end)
+          const updateResult = await UserSubscription.updateMany(
+            { 
+              userId: user._id,
+              _id: { $ne: newSub._id },
+              isCancelled: { $ne: true } // Don't deactivate subscriptions that are already scheduled for cancellation
+            },
+            { isActive: false }
+          );
+          console.log(`🔄 Updated ${updateResult.modifiedCount} other subscriptions to inactive`);
 
         // Create SubscriptionCancellation record for discount flows
         if (fromDiscountFlow === "true") {
@@ -1395,10 +1555,7 @@ handleWebhook: async (req, res) => {
         else if (fromSamePlanRenewal === 'true') actionType = 'same_plan_renewal';
         else if (fromDiscountFlow === 'true') actionType = 'discount_flow';
         
-        console.log(`✅ New subscription created for user ${user.email}: ${subscription.id} (${actionType})`);
-        if (subscriptionToCancel) {
-          console.log(`🔄 Old subscription ${subscriptionToCancel} has been cancelled and deleted`);
-        }
+          console.log(`✅ Trial subscription created and activated for user ${user.email}: ${subscription.id} (${actionType})`);
         break;
       }
 
@@ -1622,6 +1779,14 @@ handleWebhook: async (req, res) => {
             break;
           }
 
+          // Check if this is a trial subscription - only handle trial subscriptions here
+          const isTrialPeriod = session.metadata?.isTrialPeriod === 'true';
+          if (!isTrialPeriod) {
+            console.log(`⏳ Paid subscription detected - skipping creation in checkout.session.completed`);
+            console.log(`⏳ Paid subscription will be created only after successful payment in invoice.payment_succeeded`);
+            break;
+          }
+
           const alreadyExists = await UserSubscription.findOne({
             stripeSubscriptionId: session.subscription,
             userId: user._id,
@@ -1746,8 +1911,6 @@ handleWebhook: async (req, res) => {
             user.isFreePlanExpired = false;
             await user.save();
           }
-
-
 
           if (fromUpgradeFlow === "true") {
             await SubscriptionCancellation.create({
@@ -1925,24 +2088,571 @@ handleWebhook: async (req, res) => {
         const stripeSubscriptionId = invoice.subscription;
         const stripeCustomerId = invoice.customer;
 
-        const userId = invoice.metadata?.userId;
-        const planIdentifier = invoice.metadata?.planIdentifier;
-        const isUpgrade = invoice.metadata?.fromUpgradeFlow === "true";
-        const isDowngrade = invoice.metadata?.isDowngrade === "true";
+        console.log(`💰 invoice.payment_succeeded - Invoice ID: ${invoice.id}, Subscription ID: ${stripeSubscriptionId}`);
+        console.log(`💰 Amount paid: ${invoice.amount_paid / 100} ${invoice.currency}`);
 
         const user = await User.findOne({ stripeCustomerId });
-        const subscription = await UserSubscription.findOne({
+        if (!user) {
+          console.log(`❌ User not found for customer: ${stripeCustomerId}`);
+          break;
+        }
+
+        // Find the subscription - it should exist from customer.subscription.created
+        let subscription = await UserSubscription.findOne({
           stripeSubscriptionId,
-          userId: user?._id,
+          userId: user._id,
         });
 
+        console.log(`🔍 Looking for subscription with stripeSubscriptionId: ${stripeSubscriptionId}, userId: ${user._id}`);
+        if (subscription) {
+          console.log(`✅ Found subscription: ${subscription._id}, isActive: ${subscription.isActive}, pendingPayment: ${subscription.pendingPayment}, isTrialPeriod: ${subscription.isTrialPeriod}`);
+        } else {
+          console.log(`❌ Subscription not found in database`);
+        }
+
+        // Revert payment failure flags when payment succeeds - but only for the same invoice that failed
+        if (user.lastPaymentFailed && user.lastFailedInvoiceId === invoice.id) {
+          console.log(`✅ Payment succeeded for previously failed invoice ${invoice.id} - reverting payment failure flags for user ${user.email}`);
+          user.lastPaymentFailed = false;
+          user.lastFailedInvoiceId = null; // Clear the failed invoice ID
+          await user.save();
+        } else if (user.lastPaymentFailed && user.lastFailedInvoiceId !== invoice.id) {
+          console.log(`⚠️ Payment succeeded for invoice ${invoice.id} but user has different failed invoice ${user.lastFailedInvoiceId} - not reverting flags`);
+        }
+
+        // If subscription exists and was cancelled due to payment failure, reactivate it
+        if (subscription && subscription.cancelledDueToPaymentFailure === true && subscription.lastFailedInvoiceId === invoice.id) {
+          console.log(`✅ Reactivating subscription ${subscription._id} after successful payment for invoice ${invoice.id} (was cancelled due to payment failure)`);
+          subscription.isActive = true;
+          subscription.isCancelled = false;
+          subscription.cancelledDueToPaymentFailure = false;
+          subscription.lastFailedInvoiceId = null;
+          subscription.pendingPayment = false;
+          
+          // If this was a trial subscription, convert it to paid
+          if (subscription.isTrialPeriod) {
+            console.log(`🔄 Converting trial subscription to paid subscription after successful payment`);
+            subscription.isTrialPeriod = false;
+            
+            // Handle trial-to-paid credit rollover
+            if (subscription.planSnapshot?.monthlyCredits && subscription.usage?.monthlyCreditsUsed !== undefined) {
+              const remainingCredits = subscription.planSnapshot.monthlyCredits - subscription.usage.monthlyCreditsUsed;
+              console.log(`💰 Trial ending: ${remainingCredits} credits remaining from trial period`);
+              
+              if (remainingCredits > 0) {
+                // Fetch the subscription plan to get the actual monthlyCredits
+                const plan = await SubscriptionPlan.findOne({ identifier: subscription.planSnapshot.identifier });
+                
+                if (plan) {
+                  // Update monthlyCredits to remaining credits + plan monthlyCredits
+                  const newMonthlyCredits = remainingCredits + plan.monthlyCredits;
+                  subscription.planSnapshot.monthlyCredits = newMonthlyCredits;
+                  subscription.usage.monthlyCreditsUsed = 0;
+                  
+                  console.log(`💰 Updated monthlyCredits from ${subscription.planSnapshot.monthlyCredits} to ${newMonthlyCredits} (${remainingCredits} remaining + ${plan.monthlyCredits} new)`);
+                } else {
+                  console.warn(`⚠️ Subscription plan not found for identifier: ${subscription.planSnapshot.identifier}`);
+                }
+              }
+            }
+            
+            // End trial email campaign
+            console.log(`📧 Trial converted to paid subscription - ending trial email campaign for user ${user.email}`);
+            try {
+              await User.findOneAndUpdate(
+                { _id: user._id },
+                { $set: { 'trialEmailCampaign.campaignStatus': 'completed' } },
+                { new: true }
+              );
+              console.log(`✅ Trial email campaign marked as completed`);
+            } catch (error) {
+              console.error(`❌ Failed to update trial email campaign status:`, error.message);
+            }
+          } else {
+            // For regular subscriptions, reset all usage counters for new billing cycle
+            console.log(`🔄 Resetting usage counters for regular subscription after successful payment recovery`);
+            subscription.usage = {
+              jobApplicationsToday: 0,
+              monthlyCreditsUsed: 0,
+              resumeProfilesUsed: 0,
+              tailoredResumesUsed: 0,
+              autoAppliesUsed: 0,
+              jobDescriptionGenerations: 0,
+              jobSkillsGenerations: 0,
+              jobTitleGenerations: 0,
+              generationsWithoutTailoring: 0,
+            };
+            console.log(`✅ Usage counters reset for subscription ${subscription._id}`);
+          }
+          
+          await subscription.save();
+          
           user.subscribed = true;
-        await user.save();
+          await user.save();
+          break;
+        }
 
+        // If subscription doesn't exist, create it now (for paid subscriptions)
+        if (!subscription) {
+          console.log(`⚠️ Subscription not found for ${stripeSubscriptionId} - creating new paid subscription`);
+          
+          // Get the subscription from Stripe to get metadata
+          let stripeSubscription;
+          try {
+            stripeSubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+            console.log(`✅ Retrieved subscription from Stripe: ${stripeSubscription.id}`);
+          } catch (error) {
+            console.error(`❌ Failed to retrieve subscription from Stripe: ${error.message}`);
+            break;
+          }
 
-        if (!user || !subscription) break;
+          const { userId, planIdentifier, fromTrialUpgrade, fromTrialDowngrade, fromTrialToPaid, fromRegularUpgrade, fromRegularDowngrade, fromSamePlanRenewal, fromDiscountFlow, oldSubscriptionId, cancelledTrialSubscriptionId, cancelledAtPeriodEndSubscriptionId } = stripeSubscription.metadata || {};
+          
+          if (!userId) {
+            console.log(`❌ No userId found in subscription metadata, breaking`);
+            break;
+          }
+
+          const plan = await SubscriptionPlan.findOne({ identifier: planIdentifier });
+          if (!plan) {
+            console.error(`❌ Plan not found for subscription creation: ${planIdentifier}`);
+            break;
+          }
+
+          console.log(`✅ Plan found: ${plan.name} (${plan.identifier})`);
+
+          const planSnapshot = {
+            name: plan.name,
+            identifier: plan.identifier,
+            billingCycle: plan.billingCycle,
+            price: plan.price,
+            dailyLimit: plan.jobLimits.dailyLimit,
+            monthlyCredits: plan.monthlyCredits,
+            resumeProfiles: plan.resumeProfiles,
+            freeTailoredResumes: plan.freeTailoredResumes,
+            freeAutoApplies: plan.freeAutoApplies,
+            includesAutoApply: plan.includesAutoApply,
+            includesResumeBuilder: plan.includesResumeBuilder,
+            includesResumeScore: plan.includesResumeScore,
+            includesAICoverLetters: plan.includesAIcoverLetters,
+            includesInterviewBuddy: plan.includesInterviewBuddy,
+            includesTailoredResumes: plan.includesTailoredResumes,
+            descriptionNote: plan.descriptionNote,
+          };
+
+          // Calculate and roll over remaining credits from old subscription
+          let totalRolloverCredits = 0;
+          let oldSubscription = null;
+
+          console.log(`🔍 Starting credit rollover calculation for subscription ${stripeSubscriptionId}`);
+          console.log(`🔍 Metadata check - oldSubscriptionId: ${stripeSubscription.metadata?.oldSubscriptionId}`);
+          console.log(`🔍 Action types - fromTrialUpgrade: ${fromTrialUpgrade}, fromRegularUpgrade: ${fromRegularUpgrade}, fromDiscountFlow: ${fromDiscountFlow}`);
+
+          // Find the old subscription that's being replaced
+          if (stripeSubscription.metadata?.oldSubscriptionId) {
+            oldSubscription = await UserSubscription.findOne({ stripeSubscriptionId: stripeSubscription.metadata.oldSubscriptionId });
+            console.log(`🔍 Looking for old subscription with ID: ${stripeSubscription.metadata.oldSubscriptionId}`);
+            if (oldSubscription) {
+              console.log(`✅ Found old subscription: ${oldSubscription.stripeSubscriptionId}`);
+              console.log(`📊 Old subscription details: monthlyCredits=${oldSubscription.planSnapshot?.monthlyCredits}, used=${oldSubscription.usage?.monthlyCreditsUsed}`);
+            } else {
+              console.log(`❌ Old subscription not found in database`);
+            }
+          } else if (cancelledTrialSubscriptionId) {
+            oldSubscription = await UserSubscription.findOne({ stripeSubscriptionId: cancelledTrialSubscriptionId });
+            console.log(`🔍 Using cancelledTrialSubscriptionId: ${cancelledTrialSubscriptionId}`);
+          } else if (cancelledAtPeriodEndSubscriptionId) {
+            oldSubscription = await UserSubscription.findOne({ stripeSubscriptionId: cancelledAtPeriodEndSubscriptionId });
+            console.log(`🔍 Using cancelledAtPeriodEndSubscriptionId: ${cancelledAtPeriodEndSubscriptionId}`);
+          } else {
+            console.log(`🔍 No old subscription ID found in metadata - checking for other active subscriptions`);
+          }
+
+          // Calculate remaining credits from old subscription
+          if (oldSubscription) {
+            console.log(`🔍 Old subscription found: ${oldSubscription.stripeSubscriptionId}, isTrialPeriod: ${oldSubscription.isTrialPeriod}`);
+            if (oldSubscription.planSnapshot?.monthlyCredits && oldSubscription.usage?.monthlyCreditsUsed !== undefined) {
+              const remainingCredits = oldSubscription.planSnapshot.monthlyCredits - oldSubscription.usage.monthlyCreditsUsed;
+              console.log(`💰 Calculating credits: ${oldSubscription.planSnapshot.monthlyCredits} - ${oldSubscription.usage.monthlyCreditsUsed} = ${remainingCredits}`);
+              if (remainingCredits > 0) {
+                totalRolloverCredits = remainingCredits;
+                console.log(`💰 Credit rollover: ${remainingCredits} credits from old subscription ${oldSubscription.stripeSubscriptionId}`);
+              } else {
+                console.log(`💰 No credits to rollover from old subscription (remaining: ${remainingCredits})`);
+              }
+            } else {
+              console.log(`💰 Old subscription missing credit data - monthlyCredits: ${oldSubscription.planSnapshot?.monthlyCredits}, used: ${oldSubscription.usage?.monthlyCreditsUsed}`);
+            }
+          }
+
+          // Also check for any other subscriptions that might have remaining credits
+          // This includes both active subscriptions and recently cancelled trial subscriptions
+          const otherSubscriptions = await UserSubscription.find({
+            userId: user._id,
+            _id: { $ne: oldSubscription?._id },
+            $or: [
+              { isActive: true }, // Active subscriptions
+              { 
+                isTrialPeriod: true, 
+                isCancelled: true, 
+                isActive: false,
+                endDate: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Cancelled within last 24 hours
+              }
+            ]
+          });
+
+          console.log(`🔍 Found ${otherSubscriptions.length} other subscriptions to check for rollover credits`);
+
+          // If we have other subscriptions, use those for rollover
+          if (otherSubscriptions.length > 0) {
+            console.log(`🔄 Found other subscriptions - using those for rollover instead of old subscription`);
+            totalRolloverCredits = 0; // Reset the rollover credits
+            
+            for (const sub of otherSubscriptions) {
+              console.log(`🔍 Checking subscription ${sub.stripeSubscriptionId} for rollover credits (isActive: ${sub.isActive}, isTrialPeriod: ${sub.isTrialPeriod}, isCancelled: ${sub.isCancelled})`);
+              if (sub.planSnapshot?.monthlyCredits && sub.usage?.monthlyCreditsUsed !== undefined) {
+                const remainingCredits = sub.planSnapshot.monthlyCredits - sub.usage.monthlyCreditsUsed;
+                console.log(`💰 Rollover calculation: ${sub.planSnapshot.monthlyCredits} - ${sub.usage.monthlyCreditsUsed} = ${remainingCredits}`);
+                if (remainingCredits > 0) {
+                  totalRolloverCredits += remainingCredits;
+                  console.log(`💰 Credit rollover: ${remainingCredits} credits from subscription ${sub.stripeSubscriptionId}`);
+                  console.log(`💰 Running total rollover credits: ${totalRolloverCredits}`);
+                }
+              }
+            }
+          } else {
+            // Only use old subscription if no other subscriptions exist
+            console.log(`🔄 No other subscriptions found - using old subscription for rollover`);
+          }
+
+          // Add rollover credits to the new subscription's monthly credits
+          console.log(`💰 Base plan credits: ${planSnapshot.monthlyCredits}`);
+          console.log(`💰 Total rollover credits: ${totalRolloverCredits}`);
+          
+          if (totalRolloverCredits > 0) {
+            const oldMonthlyCredits = planSnapshot.monthlyCredits;
+            planSnapshot.monthlyCredits += totalRolloverCredits;
+            console.log(`💰 FINAL CALCULATION: ${oldMonthlyCredits} + ${totalRolloverCredits} = ${planSnapshot.monthlyCredits}`);
+            console.log(`💰 Total rollover credits: ${totalRolloverCredits} added to new subscription ${stripeSubscriptionId}`);
+          } else {
+            console.log(`💰 No rollover credits to add to new subscription`);
+          }
+
+          // Store rollover credit calculation data in metadata for later use
+          let rolloverData = {
+            oldSubscriptionId: stripeSubscription.metadata?.oldSubscriptionId,
+            cancelledTrialSubscriptionId,
+            cancelledAtPeriodEndSubscriptionId,
+            fromTrialUpgrade,
+            fromTrialDowngrade,
+            fromTrialToPaid,
+            fromRegularUpgrade,
+            fromRegularDowngrade,
+            fromSamePlanRenewal,
+            fromDiscountFlow
+          };
+
+          console.log(`📝 Creating new paid subscription with planSnapshot:`, JSON.stringify(planSnapshot, null, 2));
+
+          subscription = await UserSubscription.create({
+            userId: user._id,
+            subscriptionPlanId: plan._id,
+            stripeSubscriptionId: stripeSubscriptionId,
+            stripeCustomerId: stripeSubscription.customer,
+            planSnapshot,
+            usage: {
+              jobApplicationsToday: 0,
+              monthlyCreditsUsed: 0,
+              resumeProfilesUsed: 0,
+              tailoredResumesUsed: 0,
+              autoAppliesUsed: 0,
+              jobDescriptionGenerations: 0,
+              jobSkillsGenerations: 0,
+              jobTitleGenerations: 0,
+              generationsWithoutTailoring: 0,
+            },
+            startDate: new Date(stripeSubscription.current_period_start * 1000),
+            isTrialPeriod: false, // This is a paid subscription
+            endDate: new Date(stripeSubscription.current_period_end * 1000),
+            isActive: false, // Will be activated after payment processing
+            isCancelled: false,
+            cancelAt: null,
+            pendingPayment: false, // Payment just succeeded
+            rolloverData: rolloverData, // Store rollover data for later processing
+          });
+
+          console.log(`✅ New paid subscription created in database: ${subscription._id}`);
+
+          // Handle old subscription cancellation and deletion
+          if (oldSubscription) {
+            try {
+              console.log(`🚫 Attempting to cancel old subscription: ${oldSubscription.stripeSubscriptionId}`);
+              // Immediately cancel the old subscription in Stripe
+              await stripe.subscriptions.cancel(oldSubscription.stripeSubscriptionId);
+              console.log(`✅ Successfully cancelled old subscription in Stripe: ${oldSubscription.stripeSubscriptionId}`);
+
+              // Delete the old subscription data from our database
+              const deletedSub = await UserSubscription.findOneAndDelete({ stripeSubscriptionId: oldSubscription.stripeSubscriptionId });
+              if (deletedSub) {
+                console.log(`🗑️ Successfully deleted old subscription data for: ${oldSubscription.stripeSubscriptionId}`);
+            } else {
+                console.log(`⚠️ Old subscription data not found in database for: ${oldSubscription.stripeSubscriptionId}`);
+              }
+
+            } catch (error) {
+              console.error(`❌ Error cancelling/deleting old subscription ${oldSubscription.stripeSubscriptionId}:`, error.message);
+              // Continue with the process even if old subscription cleanup fails
+            }
+          } else {
+            console.log(`ℹ️ No old subscription to cancel`);
+          }
+
+          // Set all other user subscriptions to inactive (except for those scheduled for cancellation at period end)
+          const updateResult = await UserSubscription.updateMany(
+            { 
+              userId: user._id,
+              _id: { $ne: subscription._id },
+              isCancelled: { $ne: true } // Don't deactivate subscriptions that are already scheduled for cancellation
+            },
+            { isActive: false }
+          );
+          console.log(`🔄 Updated ${updateResult.modifiedCount} other subscriptions to inactive`);
+
+          // Create SubscriptionCancellation record for discount flows
+          if (fromDiscountFlow === "true") {
+            try {
+              await SubscriptionCancellation.create({
+                userId,
+                subscriptionId: subscription._id,
+                cancelReason: [],
+                cancelReasonText: "30% discount flow completed",
+                type: "cancel",
+                appliedDiscount: true,
+              });
+              console.log(`📝 Created SubscriptionCancellation record for discount flow`);
+            } catch (error) {
+              console.error(`❌ Error creating SubscriptionCancellation record:`, error.message);
+            }
+          }
+
+          // Determine the action type for logging
+          let actionType = 'regular';
+          if (fromTrialUpgrade === 'true') actionType = 'trial_upgrade';
+          else if (fromTrialDowngrade === 'true') actionType = 'trial_downgrade';
+          else if (fromTrialToPaid === 'true') actionType = 'trial_to_paid';
+          else if (fromRegularUpgrade === 'true') actionType = 'regular_upgrade';
+          else if (fromRegularDowngrade === 'true') actionType = 'regular_downgrade';
+          else if (fromSamePlanRenewal === 'true') actionType = 'same_plan_renewal';
+          else if (fromDiscountFlow === 'true') actionType = 'discount_flow';
+          
+          console.log(`✅ Paid subscription created and will be activated for user ${user.email}: ${stripeSubscriptionId} (${actionType})`);
+        }
+
+        // If subscription exists but is pending payment, activate it now
+        console.log(`🔍 Checking subscription activation: subscription exists: ${!!subscription}, pendingPayment: ${subscription?.pendingPayment}, isActive: ${subscription?.isActive}`);
+        if (subscription && (subscription.pendingPayment === true || subscription.isActive === false)) {
+          console.log(`✅ Activating subscription ${subscription._id} after successful payment (pendingPayment: ${subscription.pendingPayment}, isActive: ${subscription.isActive})`);
+          
+          // Handle credit rollover if this is an upgrade/downgrade
+          if (subscription.rolloverData) {
+            console.log(`💰 Processing credit rollover for subscription ${subscription._id}`);
+            console.log(`🔍 Rollover data:`, JSON.stringify(subscription.rolloverData, null, 2));
+            
+            const rolloverData = subscription.rolloverData;
+            let totalRolloverCredits = 0;
+            let oldSubscription = null;
+
+            // Find the old subscription that's being replaced
+            if (rolloverData.oldSubscriptionId) {
+              oldSubscription = await UserSubscription.findOne({ stripeSubscriptionId: rolloverData.oldSubscriptionId });
+              console.log(`🔍 Looking for old subscription with ID: ${rolloverData.oldSubscriptionId}`);
+              if (oldSubscription) {
+                console.log(`✅ Found old subscription: ${oldSubscription.stripeSubscriptionId}`);
+                console.log(`📊 Old subscription details: monthlyCredits=${oldSubscription.planSnapshot?.monthlyCredits}, used=${oldSubscription.usage?.monthlyCreditsUsed}`);
+              } else {
+                console.log(`❌ Old subscription not found in database`);
+              }
+            } else if (rolloverData.cancelledTrialSubscriptionId) {
+              oldSubscription = await UserSubscription.findOne({ stripeSubscriptionId: rolloverData.cancelledTrialSubscriptionId });
+              console.log(`🔍 Using cancelledTrialSubscriptionId: ${rolloverData.cancelledTrialSubscriptionId}`);
+            } else if (rolloverData.cancelledAtPeriodEndSubscriptionId) {
+              oldSubscription = await UserSubscription.findOne({ stripeSubscriptionId: rolloverData.cancelledAtPeriodEndSubscriptionId });
+              console.log(`🔍 Using cancelledAtPeriodEndSubscriptionId: ${rolloverData.cancelledAtPeriodEndSubscriptionId}`);
+            }
+
+            // Calculate remaining credits from old subscription
+            if (oldSubscription) {
+              console.log(`🔍 Old subscription found: ${oldSubscription.stripeSubscriptionId}, isTrialPeriod: ${oldSubscription.isTrialPeriod}`);
+              if (oldSubscription.planSnapshot?.monthlyCredits && oldSubscription.usage?.monthlyCreditsUsed !== undefined) {
+                const remainingCredits = oldSubscription.planSnapshot.monthlyCredits - oldSubscription.usage.monthlyCreditsUsed;
+                console.log(`💰 Calculating credits: ${oldSubscription.planSnapshot.monthlyCredits} - ${oldSubscription.usage.monthlyCreditsUsed} = ${remainingCredits}`);
+                if (remainingCredits > 0) {
+                  totalRolloverCredits = remainingCredits;
+                  console.log(`💰 Credit rollover: ${remainingCredits} credits from old subscription ${oldSubscription.stripeSubscriptionId}`);
+                } else {
+                  console.log(`💰 No credits to rollover from old subscription (remaining: ${remainingCredits})`);
+                }
+              } else {
+                console.log(`💰 Old subscription missing credit data - monthlyCredits: ${oldSubscription.planSnapshot?.monthlyCredits}, used: ${oldSubscription.usage?.monthlyCreditsUsed}`);
+              }
+            }
+
+            // Also check for any other active subscriptions that might have remaining credits
+            const otherActiveSubscriptions = await UserSubscription.find({
+              userId: user._id,
+              isActive: true,
+              _id: { $ne: oldSubscription?._id }
+            });
+
+            console.log(`🔍 Found ${otherActiveSubscriptions.length} other active subscriptions to check`);
+
+            for (const sub of otherActiveSubscriptions) {
+              console.log(`🔍 Checking subscription ${sub.stripeSubscriptionId} for additional credits`);
+              if (sub.planSnapshot?.monthlyCredits && sub.usage?.monthlyCreditsUsed !== undefined) {
+                const remainingCredits = sub.planSnapshot.monthlyCredits - sub.usage.monthlyCreditsUsed;
+                console.log(`💰 Additional calculation: ${sub.planSnapshot.monthlyCredits} - ${sub.usage.monthlyCreditsUsed} = ${remainingCredits}`);
+                if (remainingCredits > 0) {
+                  totalRolloverCredits += remainingCredits;
+                  console.log(`💰 Additional credit rollover: ${remainingCredits} credits from subscription ${sub.stripeSubscriptionId}`);
+                  console.log(`💰 Running total rollover credits: ${totalRolloverCredits}`);
+                }
+              }
+            }
+
+            // Add rollover credits to the new subscription's monthly credits
+            if (totalRolloverCredits > 0) {
+              const oldMonthlyCredits = subscription.planSnapshot.monthlyCredits;
+              subscription.planSnapshot.monthlyCredits += totalRolloverCredits;
+              console.log(`💰 FINAL CALCULATION: ${oldMonthlyCredits} + ${totalRolloverCredits} = ${subscription.planSnapshot.monthlyCredits}`);
+              console.log(`💰 Total rollover credits: ${totalRolloverCredits} added to new subscription ${subscription.stripeSubscriptionId}`);
+            } else {
+              console.log(`💰 No rollover credits to add to new subscription`);
+            }
+
+            // Handle old subscription cancellation and deletion
+            if (oldSubscription) {
+              try {
+                console.log(`🚫 Attempting to cancel old subscription: ${oldSubscription.stripeSubscriptionId}`);
+                // Immediately cancel the old subscription in Stripe
+                await stripe.subscriptions.cancel(oldSubscription.stripeSubscriptionId);
+                console.log(`✅ Successfully cancelled old subscription in Stripe: ${oldSubscription.stripeSubscriptionId}`);
+
+                // Delete the old subscription data from our database
+                const deletedSub = await UserSubscription.findOneAndDelete({ stripeSubscriptionId: oldSubscription.stripeSubscriptionId });
+                if (deletedSub) {
+                  console.log(`🗑️ Successfully deleted old subscription data for: ${oldSubscription.stripeSubscriptionId}`);
+                } else {
+                  console.log(`⚠️ Old subscription data not found in database for: ${oldSubscription.stripeSubscriptionId}`);
+                }
+              } catch (error) {
+                console.error(`❌ Error cancelling/deleting old subscription ${oldSubscription.stripeSubscriptionId}:`, error.message);
+              }
+            }
+
+            // Clear rollover data after processing
+            subscription.rolloverData = undefined;
+          }
+
+          // Activate the subscription
+          subscription.isActive = true;
+          subscription.pendingPayment = false;
+          subscription.isCancelled = false;
+          subscription.cancelAt = null;
+          await subscription.save();
+
+          // IMMEDIATELY cancel and delete old subscriptions after new subscription is activated
+          console.log(`🗑️ IMMEDIATE: Cancelling and deleting old subscriptions after new subscription activation`);
+          
+          // Find all other subscriptions for this user (both active and recently cancelled trial subscriptions)
+          const otherSubscriptions = await UserSubscription.find({
+            userId: user._id,
+            _id: { $ne: subscription._id },
+            $or: [
+              { isActive: true }, // Active subscriptions
+              { 
+                isTrialPeriod: true, 
+                isCancelled: true, 
+                isActive: false,
+                endDate: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Cancelled within last 24 hours
+              }
+            ]
+          });
+          
+          console.log(`🔍 Found ${otherSubscriptions.length} other subscriptions to cancel and delete`);
+          
+          for (const oldSub of otherSubscriptions) {
+            try {
+              // Only cancel in Stripe if it's still active
+              if (oldSub.isActive) {
+                console.log(`🚫 IMMEDIATE: Cancelling old subscription in Stripe: ${oldSub.stripeSubscriptionId}`);
+                await stripe.subscriptions.cancel(oldSub.stripeSubscriptionId);
+                console.log(`✅ IMMEDIATE: Successfully cancelled old subscription in Stripe: ${oldSub.stripeSubscriptionId}`);
+              } else {
+                console.log(`ℹ️ IMMEDIATE: Old subscription already cancelled in Stripe: ${oldSub.stripeSubscriptionId}`);
+              }
+
+              // Delete the old subscription data from our database
+              const deletedSub = await UserSubscription.findOneAndDelete({ _id: oldSub._id });
+              if (deletedSub) {
+                console.log(`🗑️ IMMEDIATE: Successfully deleted old subscription data: ${oldSub.stripeSubscriptionId}`);
+              } else {
+                console.log(`⚠️ IMMEDIATE: Old subscription data not found in database: ${oldSub.stripeSubscriptionId}`);
+              }
+            } catch (error) {
+              console.error(`❌ IMMEDIATE: Error cancelling/deleting old subscription ${oldSub.stripeSubscriptionId}:`, error.message);
+            }
+          }
+
+          // Set all other user subscriptions to inactive (fallback)
+          const updateResult = await UserSubscription.updateMany(
+            { 
+              userId: user._id,
+              _id: { $ne: subscription._id },
+              isCancelled: { $ne: true } // Don't deactivate subscriptions that are already scheduled for cancellation
+            },
+            { isActive: false }
+          );
+          console.log(`🔄 Updated ${updateResult.modifiedCount} other subscriptions to inactive (fallback)`);
+
+          // Mark user as subscribed
+          user.subscribed = true;
+          await user.save();
+
+          console.log(`✅ Subscription ${subscription._id} activated successfully after payment confirmation`);
+        } else if (subscription && subscription.isActive === false && !subscription.isCancelled && subscription.lastFailedInvoiceId === invoice.id) {
+          // Just reactivate if it was only deactivated (not cancelled) for the same invoice
+          subscription.isActive = true;
+          subscription.lastFailedInvoiceId = null; // Clear the failed invoice ID
+          
+          // Reset all usage counters for new billing cycle after payment recovery
+          console.log(`🔄 Resetting usage counters for subscription after successful payment recovery`);
+          subscription.usage = {
+            jobApplicationsToday: 0,
+            monthlyCreditsUsed: 0,
+            resumeProfilesUsed: 0,
+            tailoredResumesUsed: 0,
+            autoAppliesUsed: 0,
+            jobDescriptionGenerations: 0,
+            jobSkillsGenerations: 0,
+            jobTitleGenerations: 0,
+            generationsWithoutTailoring: 0,
+          };
+          console.log(`✅ Usage counters reset for subscription ${subscription._id}`);
+          
+          console.log(`✅ Reactivated subscription ${subscription._id} after successful payment for invoice ${invoice.id} (was only deactivated)`);
+          await subscription.save();
+        } else if (subscription && subscription.cancelledDueToPaymentFailure === true && subscription.lastFailedInvoiceId !== invoice.id) {
+          // Different invoice succeeded, don't reactivate
+          console.log(`⚠️ Payment succeeded for invoice ${invoice.id} but subscription was cancelled due to different invoice ${subscription.lastFailedInvoiceId} - not reactivating`);
+        } else if (subscription && subscription.isCancelled === true && subscription.isActive === false) {
+          // This was likely a user-initiated cancellation, don't reactivate
+          console.log(`⚠️ Subscription ${subscription._id} is cancelled but not reactivating (likely user-initiated cancellation)`);
+        }
+
+        if (!subscription) break;
 
         // Check if this is a trial upgrade, downgrade, trial-to-paid, or regular upgrade/downgrade by looking at subscription metadata
+        const { planIdentifier } = subscription.metadata || {};
         const isTrialUpgrade = subscription.metadata?.fromTrialUpgrade === 'true' || 
                               subscription.metadata?.isTrialUpgrade === 'true';
         const isTrialDowngrade = subscription.metadata?.fromTrialDowngrade === 'true' || 
@@ -1953,6 +2663,50 @@ handleWebhook: async (req, res) => {
                                 subscription.metadata?.isRegularUpgrade === 'true';
         const isRegularDowngrade = subscription.metadata?.fromRegularDowngrade === 'true' || 
                                   subscription.metadata?.isRegularDowngrade === 'true';
+
+        // Handle old subscription deletion for upgrade/downgrade flows
+        console.log(`🔍 Checking for rollover data:`, subscription.rolloverData ? 'exists' : 'does not exist');
+        if (subscription.rolloverData) {
+          console.log(`🔍 Rollover data content:`, JSON.stringify(subscription.rolloverData, null, 2));
+        }
+        
+        if (subscription.rolloverData && subscription.rolloverData.oldSubscriptionId) {
+          console.log(`🗑️ Processing old subscription deletion for upgrade/downgrade flow`);
+          console.log(`🔍 Rollover data:`, JSON.stringify(subscription.rolloverData, null, 2));
+          
+          const oldSubscriptionId = subscription.rolloverData.oldSubscriptionId;
+          console.log(`🔍 Looking for old subscription with ID: ${oldSubscriptionId}`);
+          const oldSubscription = await UserSubscription.findOne({ stripeSubscriptionId: oldSubscriptionId });
+          
+          if (oldSubscription) {
+            console.log(`✅ Found old subscription: ${oldSubscription._id}, isActive: ${oldSubscription.isActive}, isTrialPeriod: ${oldSubscription.isTrialPeriod}`);
+            try {
+              console.log(`🚫 Attempting to cancel old subscription: ${oldSubscriptionId}`);
+              // Cancel the old subscription in Stripe
+              await stripe.subscriptions.cancel(oldSubscriptionId);
+              console.log(`✅ Successfully cancelled old subscription in Stripe: ${oldSubscriptionId}`);
+
+              // Delete the old subscription data from our database
+              const deletedSub = await UserSubscription.findOneAndDelete({ stripeSubscriptionId: oldSubscriptionId });
+              if (deletedSub) {
+                console.log(`🗑️ Successfully deleted old subscription data for: ${oldSubscriptionId}`);
+              } else {
+                console.log(`⚠️ Old subscription data not found in database for: ${oldSubscriptionId}`);
+              }
+            } catch (error) {
+              console.error(`❌ Error cancelling/deleting old subscription ${oldSubscriptionId}:`, error.message);
+            }
+          } else {
+            console.log(`❌ Old subscription not found in database: ${oldSubscriptionId}`);
+          }
+          
+          // Clear rollover data after processing
+          subscription.rolloverData = undefined;
+          await subscription.save();
+          console.log(`🧹 Cleared rollover data after processing`);
+        } else {
+          console.log(`⚠️ No rollover data or oldSubscriptionId found - skipping old subscription deletion`);
+        }
 
         // Save payment history if not exists
         const existingPayment = await PaymentHistory.findOne({ invoiceId: invoice.id });
@@ -1968,7 +2722,7 @@ handleWebhook: async (req, res) => {
             status: invoice.status || "paid",
             metadata: {
               ...invoice.metadata,
-              action: isTrialUpgrade ? 'trial_upgrade' : isTrialDowngrade ? 'trial_downgrade' : isTrialToPaid ? 'trial_to_paid' : isRegularUpgrade ? 'regular_upgrade' : isRegularDowngrade ? 'regular_downgrade' : (isUpgrade ? 'upgrade' : isDowngrade ? 'downgrade' : 'payment'),
+              action: isTrialUpgrade ? 'trial_upgrade' : isTrialDowngrade ? 'trial_downgrade' : isTrialToPaid ? 'trial_to_paid' : isRegularUpgrade ? 'regular_upgrade' : isRegularDowngrade ? 'regular_downgrade' : 'payment',
               fromCheckout: true,
             },
             paymentMethod: invoice.payment_method_types?.[0] || "card",
@@ -1976,7 +2730,7 @@ handleWebhook: async (req, res) => {
         }
 
         // Update plan snapshot for upgrades, downgrades, and trial conversions
-        if (planIdentifier && (isUpgrade || isDowngrade || isTrialUpgrade || isTrialDowngrade || isTrialToPaid || isRegularUpgrade || isRegularDowngrade)) {
+        if (planIdentifier && (isTrialUpgrade || isTrialDowngrade || isTrialToPaid || isRegularUpgrade || isRegularDowngrade)) {
           const plan = await SubscriptionPlan.findOne({ identifier: planIdentifier });
           if (plan) {
             subscription.planSnapshot = {
@@ -2077,24 +2831,6 @@ handleWebhook: async (req, res) => {
         break;
       }
 
-
-     case "invoice.payment_failed": {
-  const invoice = event.data.object;
-  const stripeCustomerId = invoice.customer;
-  const user = await User.findOne({ stripeCustomerId });
-
-  if (user) {
-    console.warn(`❌ Payment failed for user ${user.email}. Invoice ID: ${invoice.id}`);
-
-    // Optionally notify the user via email or app
-    // Optionally mark subscription as pending/unpaid in your system
-  } else {
-    console.warn("❌ Payment failed. User not found for customer:", stripeCustomerId);
-  }
-
-  break;
-}
-
       case "invoice.created": {
         const invoice = event.data.object;
         console.log(`🧾 Invoice created. Reason: ${invoice.billing_reason}`);
@@ -2194,7 +2930,8 @@ handleWebhook: async (req, res) => {
       case "invoice.payment_failed": {
         const invoice = event.data.object;
         const stripeCustomerId = invoice.customer;
-      
+        console.log(`❌ invoice.payment_failed - Invoice ID: ${invoice.id}, Customer: ${stripeCustomerId}`);
+
         // 1) Find the user by customer
         const user = await User.findOne({ stripeCustomerId });
       
@@ -2206,29 +2943,76 @@ handleWebhook: async (req, res) => {
         console.warn(`❌ Payment failed for user ${user.email}. Invoice ID: ${invoice.id}`);
       
         // 2) Find the subscription in your DB using the invoice.subscription id
-        // const subscription = await UserSubscription.findOne({
-        //   stripeSubscriptionId: invoice.subscription,
-        //   userId: user._id,
-        // });
+        const subscription = await UserSubscription.findOne({
+          stripeSubscriptionId: invoice.subscription,
+          userId: user._id,
+        });
       
-        // // 3) Mark system flags on failure (idempotent-ish)
-        // try {
-          // Mark the user so UI can show "fix your payment method" banners, etc.
-          // if (user.lastPaymentFailed !== true) {
-            user.lastPaymentFailed = true;
-            await user.save();
-          // }
-      
-          // Deactivate access until a retry succeeds
-          // if (subscription && subscription.isActive !== false) {
-          //   subscription.isActive = false;
-          //   // optional: keep other flags as-is; do NOT mark cancelled here
-          //   // optional: you could store invoice.id or next_payment_attempt if your schema has fields
-          //   await subscription.save();
-          // }
-        // } catch (e) {
-        //   console.error("❌ Failed to persist payment_failed flags:", e.message);
-        // }
+        // 3) Handle payment failure based on subscription type
+        try {
+          if (subscription) {
+            if (subscription.pendingPayment === true) {
+              // For pending subscriptions (new subscriptions that haven't been activated yet), delete them
+              console.log(`🗑️ Deleting pending subscription ${subscription._id} due to payment failure`);
+              await UserSubscription.findOneAndDelete({ _id: subscription._id });
+              
+              // If this was a trial subscription, update trial campaign status
+              if (subscription.isTrialPeriod) {
+                await User.findOneAndUpdate(
+                  { _id: user._id },
+                  { $set: { 'trialEmailCampaign.campaignStatus': 'payment_failed' } },
+                  { new: true }
+                );
+                console.log(`❌ Trial subscription deleted due to payment failure for user ${user.email}. Subscription ID: ${subscription._id}. Failed Invoice: ${invoice.id}`);
+              } else {
+                console.log(`❌ Pending subscription deleted due to payment failure for user ${user.email}. Subscription ID: ${subscription._id}. Failed Invoice: ${invoice.id}`);
+              }
+            } else if (subscription.isTrialPeriod === true) {
+              // SPECIAL CASE: Trial period payment failure - simply cancel without retry logic
+              console.log(`❌ Trial period payment failed - cancelling subscription without retry logic`);
+              
+              // Cancel subscription in Stripe
+              try {
+                await stripe.subscriptions.cancel(subscription.stripeSubscriptionId);
+                console.log(`✅ Successfully cancelled trial subscription in Stripe: ${subscription.stripeSubscriptionId}`);
+              } catch (stripeError) {
+                console.error(`❌ Error cancelling trial subscription in Stripe:`, stripeError.message);
+              }
+              
+              // Update subscription in database
+              subscription.isActive = false;
+              subscription.isCancelled = true;
+              subscription.endDate = new Date();
+              await subscription.save();
+              
+              // Update trial campaign status
+              await User.findOneAndUpdate(
+                { _id: user._id },
+                { $set: { 'trialEmailCampaign.campaignStatus': 'cancelled' } },
+                { new: true }
+              );
+              
+              console.log(`❌ Trial subscription cancelled for user ${user.email}. Subscription ID: ${subscription._id}. Failed Invoice: ${invoice.id}`);
+            } else {
+              // For regular active subscriptions, use retry logic
+              // Mark the user so UI can show "fix your payment method" banners, etc.
+              user.lastPaymentFailed = true;
+              user.lastFailedInvoiceId = invoice.id; // Store the failed invoice ID
+              await user.save();
+              
+              // Deactivate access until retry succeeds
+              subscription.isActive = false;
+              subscription.cancelledDueToPaymentFailure = true; // Mark as cancelled due to payment failure
+              subscription.lastFailedInvoiceId = invoice.id; // Store the failed invoice ID
+              await subscription.save();
+              console.log(`❌ Regular subscription deactivated for user ${user.email}. Subscription ID: ${subscription._id}. Failed Invoice: ${invoice.id}`);
+            }
+          } else {
+            console.warn(`❌ Subscription not found for invoice.subscription: ${invoice.subscription}`);
+          }
+        } catch (e) {
+          console.error("❌ Failed to handle payment_failed:", e.message);
+        }
       
         // (Optional) notify user / send email here
         // services.notifyPaymentFailed(user._id, invoice.id).catch(console.error);
@@ -2249,6 +3033,7 @@ handleWebhook: async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 },
+
 
   // Add these helper functions for testing card declines
   getUserPaymentMethods: async (req, res) => {
@@ -2953,6 +3738,155 @@ handleWebhook: async (req, res) => {
         success: false,
         msg: "Failed to run test cron",
         error: error.message
+      });
+    }
+  },
+
+  /**
+   * Create Stripe Customer Portal Session for Payment Method Updates
+   * Uses the direct portal URL from Stripe Dashboard configuration
+   */
+  createCustomerPortalSession: async (req, res) => {
+    try {
+      const userId = req.token._id;
+      
+      // Find the user
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ success: false, msg: "User not found" });
+      }
+
+      // Check if user has a Stripe customer ID
+      if (!user.stripeCustomerId) {
+        return res.status(400).json({ 
+          success: false, 
+          msg: "No Stripe customer found. Please create a subscription first." 
+        });
+      }
+
+      // Create a Customer Portal session
+      const portalSession = await stripe.billingPortal.sessions.create({
+        customer: user.stripeCustomerId,
+        return_url: `${process.env.ROOT_URL}/billing`, // URL to return to after portal session
+      });
+
+      return res.status(200).json({
+        success: true,
+        portalUrl: portalSession.url,
+        msg: "Customer portal session created successfully"
+      });
+
+    } catch (error) {
+      console.error("Error creating customer portal session:", error);
+      
+      // Check if it's a configuration error
+      if (error.message.includes("No configuration provided") || 
+          error.message.includes("default configuration has not been created")) {
+        return res.status(400).json({ 
+          success: false, 
+          msg: "Customer portal not configured. Please use the direct payment method update instead.",
+          error: error.message,
+          alternativeEndpoint: "/api/subscription/create-payment-method-update-session"
+        });
+      }
+      
+      return res.status(500).json({ 
+        success: false, 
+        msg: "Failed to create customer portal session", 
+        error: error.message 
+      });
+    }
+  },
+
+  /**
+   * Create Stripe Checkout Session for Payment Method Update Only
+   * Alternative to Customer Portal - creates a checkout session just for updating payment method
+   */
+  createPaymentMethodUpdateSession: async (req, res) => {
+    try {
+      const userId = req.token._id;
+      
+      // Find the user
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ success: false, msg: "User not found" });
+      }
+
+      // Check if user has a Stripe customer ID
+      if (!user.stripeCustomerId) {
+        return res.status(400).json({ 
+          success: false, 
+          msg: "No Stripe customer found. Please create a subscription first." 
+        });
+      }
+
+      // Create a checkout session for payment method setup
+      const session = await stripe.checkout.sessions.create({
+        customer: user.stripeCustomerId,
+        payment_method_types: ['card'],
+        mode: 'setup', // Setup mode for payment method collection only
+        success_url: `${process.env.ROOT_URL}/payment-method-updated?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.ROOT_URL}/billing`,
+        metadata: {
+          userId: userId,
+          action: 'update_payment_method'
+        }
+      });
+
+      return res.status(200).json({
+        success: true,
+        checkoutUrl: session.url,
+        msg: "Payment method update session created successfully"
+      });
+
+    } catch (error) {
+      console.error("Error creating payment method update session:", error);
+      return res.status(500).json({ 
+        success: false, 
+        msg: "Failed to create payment method update session", 
+        error: error.message 
+      });
+    }
+  },
+
+  /**
+   * Get Direct Customer Portal URL
+   * Uses the direct portal URL from Stripe Dashboard with customer parameter
+   */
+  getDirectCustomerPortalUrl: async (req, res) => {
+    try {
+      const userId = req.token._id;
+      
+      // Find the user
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ success: false, msg: "User not found" });
+      }
+
+      // Check if user has a Stripe customer ID
+      if (!user.stripeCustomerId) {
+        return res.status(400).json({ 
+          success: false, 
+          msg: "No Stripe customer found. Please create a subscription first." 
+        });
+      }
+
+      // Use the direct portal URL from your dashboard configuration
+      const basePortalUrl = process.env.BASE_PORTAL_URL;
+      const portalUrl = `${basePortalUrl}?customer=${user.stripeCustomerId}`;
+
+      return res.status(200).json({
+        success: true,
+        portalUrl: portalUrl,
+        msg: "Direct customer portal URL generated successfully"
+      });
+
+    } catch (error) {
+      console.error("Error generating direct customer portal URL:", error);
+      return res.status(500).json({ 
+        success: false, 
+        msg: "Failed to generate customer portal URL", 
+        error: error.message 
       });
     }
   },

@@ -1,7 +1,8 @@
 // routes/stripeSimRoutes.js (or inline in your routes file)
 const express = require('express');
 const router = express.Router();
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); // test key
+const { initializeStripe } = require("../utils/stripeHelper");
+const stripe = initializeStripe();
 const User = require('../models/user.model'); // adjust path
 const authPolicy = require("../utils/auth.policy");
 
